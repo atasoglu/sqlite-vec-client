@@ -1,5 +1,6 @@
-from typing import List, Dict, Any, Tuple, TypeAlias
+"""Type aliases used across the sqlite-vec client package."""
 
+from typing import List, Dict, Any, Tuple, TypeAlias
 
 Text: TypeAlias = str
 Rowid: TypeAlias = int

@@ -1,3 +1,10 @@
+"""High-level client for vector search on SQLite using the sqlite-vec extension.
+
+This module provides `SQLiteVecClient`, a thin wrapper around `sqlite3` and
+`sqlite-vec` to store texts, JSON metadata, and float32 embeddings, and to run
+similarity search through a virtual vector table.
+"""
+
 from __future__ import annotations
 import json
 import sqlite3
@@ -9,8 +16,18 @@ from .utils import serialize_f32, deserialize_f32
 
 
 class SQLiteVecClient:
+    """Manage a text+embedding table and its sqlite-vec index.
+
+    The client maintains two tables:
+    - `{table}`: base table with columns `text`, `metadata`, `text_embedding`.
+    - `{table}_vec`: `vec0` virtual table mirroring embeddings for ANN search.
+
+    It exposes CRUD helpers and `similarity_search` over embeddings.
+    """
+
     @staticmethod
-    def create_connection(db_path: str):
+    def create_connection(db_path: str) -> sqlite3.Connection:
+        """Create a SQLite connection with sqlite-vec extension loaded."""
         connection = sqlite3.connect(db_path)
         connection.row_factory = sqlite3.Row
         connection.enable_load_extension(True)
@@ -20,6 +37,7 @@ class SQLiteVecClient:
 
     @staticmethod
     def rows_to_results(rows: List[sqlite3.Row]) -> List[Result]:
+        """Convert `sqlite3.Row` items into `(rowid, text, metadata, embedding)`."""
         return [
             (
                 row["rowid"],
@@ -30,11 +48,13 @@ class SQLiteVecClient:
             for row in rows
         ]
 
-    def __init__(self, table: str, db_path: str):
+    def __init__(self, table: str, db_path: str) -> None:
+        """Initialize the client for a given base table and database file."""
         self.table = table
         self.connection = self.create_connection(db_path)
 
     def __enter__(self) -> SQLiteVecClient:
+        """Support context manager protocol and return `self`."""
         return self
 
     def __exit__(
@@ -43,6 +63,7 @@ class SQLiteVecClient:
         exc: Optional[BaseException],
         tb: Optional[TracebackType],
     ) -> Optional[bool]:
+        """Close the connection on exit; do not suppress exceptions."""
         self.close()
         return False
 
@@ -51,6 +72,7 @@ class SQLiteVecClient:
         dim: int,
         distance: Literal["L1", "L2", "cosine"] = "cosine",
     ) -> None:
+        """Create base table, vector table, and triggers to keep them in sync."""
         self.connection.execute(
             f"""
             CREATE TABLE IF NOT EXISTS {self.table}
@@ -112,6 +134,7 @@ class SQLiteVecClient:
         embedding: Embeddings,
         top_k: int = 5,
     ) -> List[SimilaritySearchResult]:
+        """Return top-k nearest neighbors for the given embedding."""
         cursor = self.connection.cursor()
         cursor.execute(
             f"""
@@ -137,6 +160,7 @@ class SQLiteVecClient:
         embeddings: List[Embeddings],
         metadata: List[Metadata] = None,
     ) -> Rowids:
+        """Insert texts with embeddings (and optional metadata) and return rowids."""
         max_id = self.connection.execute(
             f"SELECT max(rowid) as rowid FROM {self.table}"
         ).fetchone()["rowid"]
@@ -162,6 +186,7 @@ class SQLiteVecClient:
         return [row["rowid"] for row in results]
 
     def get_by_id(self, rowid: int) -> Optional[Result]:
+        """Get a single record by rowid; return `None` if not found."""
         cursor = self.connection.cursor()
         cursor.execute(
             f"SELECT rowid, text, metadata, text_embedding FROM {self.table} WHERE rowid = ?",
@@ -173,6 +198,7 @@ class SQLiteVecClient:
         return self.rows_to_results([row])[0]
 
     def get_many(self, rowids: List[int]) -> List[Result]:
+        """Get multiple records by rowids; returns empty list if input is empty."""
         if not rowids:
             return []
         placeholders = ",".join(["?"] * len(rowids))
@@ -185,6 +211,7 @@ class SQLiteVecClient:
         return self.rows_to_results(rows)
 
     def get_by_text(self, text: str) -> List[Result]:
+        """Get all records with exact `text`, ordered by rowid ascending."""
         cursor = self.connection.cursor()
         cursor.execute(
             f"""
@@ -198,6 +225,7 @@ class SQLiteVecClient:
         return self.rows_to_results(rows)
 
     def get_by_metadata(self, metadata: Dict[str, Any]) -> List[Result]:
+        """Get all records whose metadata exactly equals the given dict."""
         cursor = self.connection.cursor()
         cursor.execute(
             f"""
@@ -216,6 +244,7 @@ class SQLiteVecClient:
         offset: int = 0,
         order: Literal["asc", "desc"] = "asc",
     ) -> List[Result]:
+        """List records with pagination and order by rowid."""
         cursor = self.connection.cursor()
         cursor.execute(
             f"""
@@ -229,6 +258,7 @@ class SQLiteVecClient:
         return self.rows_to_results(rows)
 
     def count(self) -> int:
+        """Return the total number of rows in the base table."""
         cursor = self.connection.cursor()
         cursor.execute(f"SELECT COUNT(1) as c FROM {self.table}")
         row = cursor.fetchone()
@@ -242,6 +272,7 @@ class SQLiteVecClient:
         metadata: Optional[Metadata] = None,
         embedding: Optional[Embeddings] = None,
     ) -> bool:
+        """Update fields of a record by rowid; return True if a row changed."""
         sets = []
         params: List[Any] = []
         if text is not None:
@@ -265,12 +296,14 @@ class SQLiteVecClient:
         return cur.rowcount > 0
 
     def delete_by_id(self, rowid: int) -> bool:
+        """Delete a single record by rowid; return True if a row was removed."""
         cur = self.connection.cursor()
         cur.execute(f"DELETE FROM {self.table} WHERE rowid = ?", [rowid])
         self.connection.commit()
         return cur.rowcount > 0
 
     def delete_many(self, rowids: List[int]) -> int:
+        """Delete multiple records by rowids; return number of rows removed."""
         if not rowids:
             return 0
         placeholders = ",".join(["?"] * len(rowids))
@@ -283,6 +316,7 @@ class SQLiteVecClient:
         return cur.rowcount
 
     def close(self) -> None:
+        """Close the underlying SQLite connection, suppressing close errors."""
         try:
             self.connection.close()
         except Exception:
