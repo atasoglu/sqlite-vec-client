@@ -28,7 +28,14 @@ def benchmark_add(
 
 def benchmark_get_many(client: SQLiteVecClient, rowids: list[int]) -> dict:
     """Benchmark get_many operations."""
-    elapsed, _ = benchmark_operation(client.get_many, rowids)
+    # Split into chunks to avoid SQLite variable limit (999)
+    chunk_size = 500
+    import time
+
+    start = time.perf_counter()
+    for i in range(0, len(rowids), chunk_size):
+        client.get_many(rowids[i : i + chunk_size])
+    elapsed = time.perf_counter() - start
     return {
         "operation": "get_many",
         "count": len(rowids),
@@ -49,14 +56,16 @@ def benchmark_similarity_search(
         times.append(elapsed)
 
     avg_time = statistics.mean(times)
+    total_time = sum(times)
     return {
         "operation": "similarity_search",
         "top_k": top_k,
-        "iterations": iterations,
+        "count": iterations,
+        "time": total_time,
+        "ops_per_sec": iterations / total_time,
         "avg_time": avg_time,
         "min_time": min(times),
         "max_time": max(times),
-        "searches_per_sec": 1 / avg_time,
     }
 
 
