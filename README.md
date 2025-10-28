@@ -1,5 +1,10 @@
 # sqlite-vec-client
 
+[![PyPI version](https://badge.fury.io/py/sqlite-vec-client.svg)](https://badge.fury.io/py/sqlite-vec-client)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+
 A tiny, lightweight Pythonic helper around [sqlite-vec](https://github.com/asg017/sqlite-vec) that lets you store texts, JSON metadata, and float32 embeddings in SQLite and run fast similarity search.
 
 ## Features
@@ -137,9 +142,17 @@ mypy sqlite_vec_client/
 ruff check . && ruff format . && mypy sqlite_vec_client/ && pytest
 ```
 
+## Documentation
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
+- [CHANGELOG.md](CHANGELOG.md) - Version history
+- [TESTING.md](TESTING.md) - Testing documentation
+- [Examples](examples/) - Usage examples
+
 ## Contributing
-Contributions are very welcome—issues, ideas, and PRs help this project grow!
+
+Contributions are very welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-MIT
+MIT - See [LICENSE](LICENSE) for details.
