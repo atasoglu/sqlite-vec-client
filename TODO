@@ -30,6 +30,7 @@
 - [x] examples/batch_operations.py
 - [x] examples/context_manager.py
 - [x] examples/real_world_scenario.py
+- [x] examples/logging_example.py
 
 ### Documentation
 - [x] Create CONTRIBUTING.md
@@ -54,10 +55,9 @@
 - [ ] Linting and type checking
 
 ### Logging
-- [ ] Python logging module integration
-- [ ] Log level configuration
-- [ ] Debug mode support
-- [ ] Query logging (optional)
+- [x] Python logging module integration
+- [x] Log level configuration
+- [x] Debug mode support
 
 ## 🔵 Low Priority (New Features)
 

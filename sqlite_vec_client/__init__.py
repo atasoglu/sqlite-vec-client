@@ -12,6 +12,7 @@ from .exceptions import (
     ValidationError,
     VecClientError,
 )
+from .logger import get_logger
 
 __all__ = [
     "SQLiteVecClient",
@@ -21,4 +22,5 @@ __all__ = [
     "TableNotFoundError",
     "ConnectionError",
     "DimensionMismatchError",
+    "get_logger",
 ]

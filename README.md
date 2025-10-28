@@ -67,6 +67,34 @@ client.close()
 ## How it works
 `SQLiteVecClient` stores data in `{table}` and mirrors embeddings in `{table}_vec` (a `vec0` virtual table). SQLite triggers keep both in sync when rows are inserted, updated, or deleted. Embeddings are serialized as packed float32 bytes for compact storage.
 
+## Logging
+
+The library includes built-in logging support using Python's standard logging module. By default, logging is set to WARNING level.
+
+**Configure log level via environment variable:**
+```bash
+export SQLITE_VEC_CLIENT_LOG_LEVEL=DEBUG  # Linux/macOS
+set SQLITE_VEC_CLIENT_LOG_LEVEL=DEBUG     # Windows
+```
+
+**Or programmatically:**
+```python
+import logging
+from sqlite_vec_client import get_logger
+
+logger = get_logger()
+logger.setLevel(logging.DEBUG)  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+```
+
+**Available log levels:**
+- `DEBUG`: Detailed information for diagnosing issues
+- `INFO`: General informational messages about operations
+- `WARNING`: Warning messages (default)
+- `ERROR`: Error messages
+- `CRITICAL`: Critical error messages
+
+See [examples/logging_example.py](examples/logging_example.py) for a complete example.
+
 ## Testing
 
 The project has comprehensive test coverage (91%+) with 75 tests covering:
@@ -148,6 +176,8 @@ ruff check . && ruff format . && mypy sqlite_vec_client/ && pytest
 - [CHANGELOG.md](CHANGELOG.md) - Version history
 - [TESTING.md](TESTING.md) - Testing documentation
 - [Examples](examples/) - Usage examples
+  - [basic_usage.py](examples/basic_usage.py) - Basic CRUD operations
+  - [logging_example.py](examples/logging_example.py) - Logging configuration
 
 ## Contributing
 

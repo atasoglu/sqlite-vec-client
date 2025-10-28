@@ -16,6 +16,7 @@ import sqlite_vec
 
 from .exceptions import ConnectionError as VecConnectionError
 from .exceptions import TableNotFoundError
+from .logger import get_logger
 from .types import Embeddings, Metadata, Result, Rowids, SimilaritySearchResult, Text
 from .utils import deserialize_f32, serialize_f32
 from .validation import (
@@ -26,6 +27,8 @@ from .validation import (
     validate_table_name,
     validate_top_k,
 )
+
+logger = get_logger()
 
 
 class SQLiteVecClient:
@@ -52,15 +55,19 @@ class SQLiteVecClient:
             VecConnectionError: If connection or extension loading fails
         """
         try:
+            logger.debug(f"Connecting to database: {db_path}")
             connection = sqlite3.connect(db_path)
             connection.row_factory = sqlite3.Row
             connection.enable_load_extension(True)
             sqlite_vec.load(connection)
             connection.enable_load_extension(False)
+            logger.info(f"Successfully connected to database: {db_path}")
             return connection
         except sqlite3.Error as e:
+            logger.error(f"Failed to connect to database {db_path}: {e}")
             raise VecConnectionError(f"Failed to connect to database: {e}") from e
         except Exception as e:
+            logger.error(f"Failed to load sqlite-vec extension: {e}")
             raise VecConnectionError(f"Failed to load sqlite-vec extension: {e}") from e
 
     @staticmethod
@@ -89,6 +96,7 @@ class SQLiteVecClient:
         """
         validate_table_name(table)
         self.table = table
+        logger.debug(f"Initializing SQLiteVecClient for table: {table}")
         self.connection = self.create_connection(db_path)
 
     def __enter__(self) -> SQLiteVecClient:
@@ -119,6 +127,9 @@ class SQLiteVecClient:
             ValidationError: If dimension is invalid
         """
         validate_dimension(dim)
+        logger.info(
+            f"Creating table '{self.table}' with dim={dim}, distance={distance}"
+        )
         self.connection.execute(
             f"""
             CREATE TABLE IF NOT EXISTS {self.table}
@@ -174,6 +185,7 @@ class SQLiteVecClient:
             """
         )
         self.connection.commit()
+        logger.debug(f"Table '{self.table}' and triggers created successfully")
 
     def similarity_search(
         self,
@@ -194,6 +206,7 @@ class SQLiteVecClient:
             TableNotFoundError: If table doesn't exist
         """
         validate_top_k(top_k)
+        logger.debug(f"Performing similarity search with top_k={top_k}")
         try:
             cursor = self.connection.cursor()
             cursor.execute(
@@ -212,9 +225,11 @@ class SQLiteVecClient:
                 [serialize_f32(embedding), top_k],
             )
             results = cursor.fetchall()
+            logger.debug(f"Similarity search returned {len(results)} results")
             return [(row["rowid"], row["text"], row["distance"]) for row in results]
         except sqlite3.OperationalError as e:
             if "no such table" in str(e).lower():
+                logger.error(f"Table '{self.table}' not found during similarity search")
                 raise TableNotFoundError(
                     f"Table '{self.table}' or '{self.table}_vec' does not exist. "
                     "Call create_table() first."
@@ -242,6 +257,7 @@ class SQLiteVecClient:
             TableNotFoundError: If table doesn't exist
         """
         validate_embeddings_match(texts, embeddings, metadata)
+        logger.debug(f"Adding {len(texts)} records to table '{self.table}'")
         try:
             max_id = self.connection.execute(
                 f"SELECT max(rowid) as rowid FROM {self.table}"
@@ -266,9 +282,12 @@ class SQLiteVecClient:
             results = self.connection.execute(
                 f"SELECT rowid FROM {self.table} WHERE rowid > {max_id}"
             )
-            return [row["rowid"] for row in results]
+            rowids = [row["rowid"] for row in results]
+            logger.info(f"Added {len(rowids)} records to table '{self.table}'")
+            return rowids
         except sqlite3.OperationalError as e:
             if "no such table" in str(e).lower():
+                logger.error(f"Table '{self.table}' not found during add operation")
                 raise TableNotFoundError(
                     f"Table '{self.table}' does not exist. Call create_table() first."
                 ) from e
@@ -380,6 +399,7 @@ class SQLiteVecClient:
         embedding: Embeddings | None = None,
     ) -> bool:
         """Update fields of a record by rowid; return True if a row changed."""
+        logger.debug(f"Updating record with rowid={rowid}")
         sets = []
         params: list[Any] = []
         if text is not None:
@@ -400,19 +420,27 @@ class SQLiteVecClient:
         cur = self.connection.cursor()
         cur.execute(sql, params)
         self.connection.commit()
-        return cur.rowcount > 0
+        updated = cur.rowcount > 0
+        if updated:
+            logger.debug(f"Successfully updated record with rowid={rowid}")
+        return updated
 
     def delete_by_id(self, rowid: int) -> bool:
         """Delete a single record by rowid; return True if a row was removed."""
+        logger.debug(f"Deleting record with rowid={rowid}")
         cur = self.connection.cursor()
         cur.execute(f"DELETE FROM {self.table} WHERE rowid = ?", [rowid])
         self.connection.commit()
-        return cur.rowcount > 0
+        deleted = cur.rowcount > 0
+        if deleted:
+            logger.debug(f"Successfully deleted record with rowid={rowid}")
+        return deleted
 
     def delete_many(self, rowids: list[int]) -> int:
         """Delete multiple records by rowids; return number of rows removed."""
         if not rowids:
             return 0
+        logger.debug(f"Deleting {len(rowids)} records")
         placeholders = ",".join(["?"] * len(rowids))
         cur = self.connection.cursor()
         cur.execute(
@@ -420,11 +448,15 @@ class SQLiteVecClient:
             rowids,
         )
         self.connection.commit()
-        return cur.rowcount
+        deleted_count = cur.rowcount
+        logger.info(f"Deleted {deleted_count} records from table '{self.table}'")
+        return deleted_count
 
     def close(self) -> None:
         """Close the underlying SQLite connection, suppressing close errors."""
         try:
+            logger.debug(f"Closing connection for table '{self.table}'")
             self.connection.close()
-        except Exception:
-            pass
+            logger.info(f"Connection closed for table '{self.table}'")
+        except Exception as e:
+            logger.warning(f"Error closing connection: {e}")
