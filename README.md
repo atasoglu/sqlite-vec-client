@@ -62,7 +62,19 @@ client.close()
 ## How it works
 `SQLiteVecClient` stores data in `{table}` and mirrors embeddings in `{table}_vec` (a `vec0` virtual table). SQLite triggers keep both in sync when rows are inserted, updated, or deleted. Embeddings are serialized as packed float32 bytes for compact storage.
 
+## Testing
+
+The project has comprehensive test coverage (91%+) with 75 tests covering:
+- Unit tests for utilities and validation
+- Integration tests for all client operations
+- Security tests for SQL injection prevention
+- Edge cases and error handling
+
+See [TESTING.md](TESTING.md) for detailed testing documentation.
+
 ## Development
+
+### Setup
 
 Install development dependencies:
 ```bash
@@ -70,16 +82,59 @@ pip install -r requirements-dev.txt
 pre-commit install
 ```
 
-Run tests:
+### Testing
+
+The project uses pytest with comprehensive test coverage (89%+).
+
+**Run all tests:**
 ```bash
-pytest --cov=sqlite_vec_client
+pytest
 ```
 
-Format and lint:
+**Run with verbose output:**
+```bash
+pytest -v
+```
+
+**Run specific test categories:**
+```bash
+pytest -m unit          # Unit tests only
+pytest -m integration   # Integration tests only
+```
+
+**Run with coverage report:**
+```bash
+pytest --cov=sqlite_vec_client --cov-report=html
+```
+
+**Run specific test file:**
+```bash
+pytest tests/test_client.py
+pytest tests/test_validation.py
+pytest tests/test_security.py
+pytest tests/test_utils.py
+```
+
+### Code Quality
+
+**Format code:**
+```bash
+ruff format .
+```
+
+**Lint code:**
 ```bash
 ruff check .
-ruff format .
+```
+
+**Type checking:**
+```bash
 mypy sqlite_vec_client/
+```
+
+**Run all quality checks:**
+```bash
+ruff check . && ruff format . && mypy sqlite_vec_client/ && pytest
 ```
 
 ## Contributing
