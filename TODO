@@ -41,7 +41,7 @@
 ## 🟢 Medium Priority (Development & Tooling)
 
 ### Packaging & Tooling
-- [ ] Migrate from setup.py to pyproject.toml
+- [x] Migrate from setup.py to pyproject.toml
 - [x] Add mypy configuration
 - [x] Add ruff or black formatter
 - [x] Configure pre-commit hooks
