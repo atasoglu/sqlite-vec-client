@@ -3,6 +3,8 @@
 Exposes `SQLiteVecClient` as the primary entry point.
 """
 
+__version__ = "0.2.0"
+
 from .base import SQLiteVecClient
 from .exceptions import (
     ConnectionError,
@@ -15,6 +17,7 @@ from .exceptions import (
 from .logger import get_logger
 
 __all__ = [
+    "__version__",
     "SQLiteVecClient",
     "VecClientError",
     "ValidationError",

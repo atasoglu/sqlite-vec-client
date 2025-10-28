@@ -7,14 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-01-27
+
 ### Added
 - `update_many()` - Bulk update multiple records in a single transaction
 - `get_all()` - Memory-efficient generator for iterating over all records
 - `transaction()` - Context manager for atomic multi-operation transactions
-- Comprehensive tests for bulk operations (92% coverage)
+- Comprehensive tests for bulk operations (91%+ coverage)
 - Updated batch_operations.py example with new features
 - CONTRIBUTING.md with contribution guidelines
 - CHANGELOG.md for tracking changes
+- Python logging module integration with configurable log levels
+- Complete CI/CD pipeline with GitHub Actions
+- Pre-commit hooks and code quality tools (ruff, mypy)
+
+### Security
+- SQL injection prevention with table name validation
+- Input validation for all parameters
+- Custom exception classes for better error handling
 
 ## [0.1.0] - 2025-01-XX
 
@@ -73,10 +83,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **0.2.0** - Bulk operations, logging, security improvements, CI/CD
 - **0.1.0** - First stable release with comprehensive features and testing
 - **0.0.1** - Initial development version
 
 ## Upgrade Guide
+
+### From 0.1.x to 0.2.0
+
+No breaking changes. New features:
+- Use `update_many()` for bulk updates
+- Use `get_all()` for memory-efficient iteration
+- Use `transaction()` context manager for atomic operations
+- Configure logging via environment variable or programmatically
 
 ### From 0.0.x to 0.1.0
 
