@@ -1,5 +1,6 @@
 from pathlib import Path
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
 
 here = Path(__file__).parent.resolve()
 
@@ -8,7 +9,9 @@ setup(
     version="0.1.0",
     author="Ahmet Atasoglu",
     author_email="ahmetatasoglu98@gmail.com",
-    description="A tiny Python client around sqlite-vec for CRUD and similarity search.",
+    description=(
+        "A tiny Python client around sqlite-vec for CRUD and similarity search."
+    ),
     long_description=(here / "README.md").read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",
     url="https://github.com/atasoglu/sqlite-vec-client",

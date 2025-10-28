@@ -6,13 +6,16 @@ similarity search through a virtual vector table.
 """
 
 from __future__ import annotations
+
 import json
 import sqlite3
-import sqlite_vec
 from types import TracebackType
-from typing import Optional, List, Dict, Any, Literal, Type
-from .types import Embeddings, Result, SimilaritySearchResult, Rowids, Metadata, Text
-from .utils import serialize_f32, deserialize_f32
+from typing import Any, Literal
+
+import sqlite_vec
+
+from .types import Embeddings, Metadata, Result, Rowids, SimilaritySearchResult, Text
+from .utils import deserialize_f32, serialize_f32
 
 
 class SQLiteVecClient:
@@ -36,7 +39,7 @@ class SQLiteVecClient:
         return connection
 
     @staticmethod
-    def rows_to_results(rows: List[sqlite3.Row]) -> List[Result]:
+    def rows_to_results(rows: list[sqlite3.Row]) -> list[Result]:
         """Convert `sqlite3.Row` items into `(rowid, text, metadata, embedding)`."""
         return [
             (
@@ -59,13 +62,12 @@ class SQLiteVecClient:
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc: Optional[BaseException],
-        tb: Optional[TracebackType],
-    ) -> Optional[bool]:
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         """Close the connection on exit; do not suppress exceptions."""
         self.close()
-        return False
 
     def create_table(
         self,
@@ -96,11 +98,11 @@ class SQLiteVecClient:
         )
         self.connection.execute(
             f"""
-            CREATE TRIGGER IF NOT EXISTS {self.table}_embed_text 
+            CREATE TRIGGER IF NOT EXISTS {self.table}_embed_text
             AFTER INSERT ON {self.table}
             BEGIN
                 INSERT INTO {self.table}_vec(rowid, text_embedding)
-                VALUES (new.rowid, new.text_embedding) 
+                VALUES (new.rowid, new.text_embedding)
                 ;
             END;
             """
@@ -133,7 +135,7 @@ class SQLiteVecClient:
         self,
         embedding: Embeddings,
         top_k: int = 5,
-    ) -> List[SimilaritySearchResult]:
+    ) -> list[SimilaritySearchResult]:
         """Return top-k nearest neighbors for the given embedding."""
         cursor = self.connection.cursor()
         cursor.execute(
@@ -143,7 +145,7 @@ class SQLiteVecClient:
                 text,
                 distance
             FROM {self.table} AS e
-            INNER JOIN {self.table}_vec AS v on v.rowid = e.rowid  
+            INNER JOIN {self.table}_vec AS v on v.rowid = e.rowid
             WHERE
                 v.text_embedding MATCH ?
                 AND k = ?
@@ -156,9 +158,9 @@ class SQLiteVecClient:
 
     def add(
         self,
-        texts: List[Text],
-        embeddings: List[Embeddings],
-        metadata: List[Metadata] = None,
+        texts: list[Text],
+        embeddings: list[Embeddings],
+        metadata: list[Metadata] | None = None,
     ) -> Rowids:
         """Insert texts with embeddings (and optional metadata) and return rowids."""
         max_id = self.connection.execute(
@@ -176,7 +178,8 @@ class SQLiteVecClient:
             for text, md, embedding in zip(texts, metadata, embeddings)
         ]
         self.connection.executemany(
-            f"INSERT INTO {self.table}(text, metadata, text_embedding) VALUES (?,?,?)",
+            f"""INSERT INTO {self.table}(text, metadata, text_embedding)
+            VALUES (?,?,?)""",
             data_input,
         )
         self.connection.commit()
@@ -185,11 +188,14 @@ class SQLiteVecClient:
         )
         return [row["rowid"] for row in results]
 
-    def get_by_id(self, rowid: int) -> Optional[Result]:
+    def get_by_id(self, rowid: int) -> Result | None:
         """Get a single record by rowid; return `None` if not found."""
         cursor = self.connection.cursor()
         cursor.execute(
-            f"SELECT rowid, text, metadata, text_embedding FROM {self.table} WHERE rowid = ?",
+            f"""
+            SELECT rowid, text, metadata, text_embedding
+            FROM {self.table} WHERE rowid = ?
+            """,
             [rowid],
         )
         row = cursor.fetchone()
@@ -197,20 +203,21 @@ class SQLiteVecClient:
             return None
         return self.rows_to_results([row])[0]
 
-    def get_many(self, rowids: List[int]) -> List[Result]:
+    def get_many(self, rowids: list[int]) -> list[Result]:
         """Get multiple records by rowids; returns empty list if input is empty."""
         if not rowids:
             return []
         placeholders = ",".join(["?"] * len(rowids))
         cursor = self.connection.cursor()
         cursor.execute(
-            f"SELECT rowid, text, metadata, text_embedding FROM {self.table} WHERE rowid IN ({placeholders})",
+            f"""SELECT rowid, text, metadata, text_embedding FROM {self.table}
+            WHERE rowid IN ({placeholders})""",
             rowids,
         )
         rows = cursor.fetchall()
         return self.rows_to_results(rows)
 
-    def get_by_text(self, text: str) -> List[Result]:
+    def get_by_text(self, text: str) -> list[Result]:
         """Get all records with exact `text`, ordered by rowid ascending."""
         cursor = self.connection.cursor()
         cursor.execute(
@@ -224,7 +231,7 @@ class SQLiteVecClient:
         rows = cursor.fetchall()
         return self.rows_to_results(rows)
 
-    def get_by_metadata(self, metadata: Dict[str, Any]) -> List[Result]:
+    def get_by_metadata(self, metadata: dict[str, Any]) -> list[Result]:
         """Get all records whose metadata exactly equals the given dict."""
         cursor = self.connection.cursor()
         cursor.execute(
@@ -238,12 +245,12 @@ class SQLiteVecClient:
         rows = cursor.fetchall()
         return self.rows_to_results(rows)
 
-    def list(
+    def list_results(
         self,
         limit: int = 50,
         offset: int = 0,
         order: Literal["asc", "desc"] = "asc",
-    ) -> List[Result]:
+    ) -> list[Result]:
         """List records with pagination and order by rowid."""
         cursor = self.connection.cursor()
         cursor.execute(
@@ -268,13 +275,13 @@ class SQLiteVecClient:
         self,
         rowid: int,
         *,
-        text: Optional[str] = None,
-        metadata: Optional[Metadata] = None,
-        embedding: Optional[Embeddings] = None,
+        text: str | None = None,
+        metadata: Metadata | None = None,
+        embedding: Embeddings | None = None,
     ) -> bool:
         """Update fields of a record by rowid; return True if a row changed."""
         sets = []
-        params: List[Any] = []
+        params: list[Any] = []
         if text is not None:
             sets.append("text = ?")
             params.append(text)
@@ -302,7 +309,7 @@ class SQLiteVecClient:
         self.connection.commit()
         return cur.rowcount > 0
 
-    def delete_many(self, rowids: List[int]) -> int:
+    def delete_many(self, rowids: list[int]) -> int:
         """Delete multiple records by rowids; return number of rows removed."""
         if not rowids:
             return 0

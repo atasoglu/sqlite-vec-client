@@ -1,6 +1,7 @@
 """Utilities for serializing and deserializing float32 embedding arrays."""
 
 import struct
+
 from .types import Embeddings
 
 
