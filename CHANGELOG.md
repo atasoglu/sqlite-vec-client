@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-01-28
+
+### Added
+- Enhanced GitHub release workflow with improved changelog extraction
+- Better error handling in CI/CD pipeline
+
+### Fixed
+- Changelog parsing in release notes generation
+
 ## [0.2.1] - 2025-01-27
 
 ### Fixed
