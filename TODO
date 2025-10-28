@@ -25,11 +25,11 @@
 - [ ] Mock tests (sqlite-vec extension)
 
 ### Examples
-- [ ] examples/basic_usage.py
-- [ ] examples/metadata_filtering.py
-- [ ] examples/batch_operations.py
-- [ ] examples/context_manager.py
-- [ ] examples/real_world_scenario.py
+- [x] examples/basic_usage.py
+- [x] examples/metadata_filtering.py
+- [x] examples/batch_operations.py
+- [x] examples/context_manager.py
+- [x] examples/real_world_scenario.py
 
 ### Documentation
 - [ ] Create CONTRIBUTING.md
