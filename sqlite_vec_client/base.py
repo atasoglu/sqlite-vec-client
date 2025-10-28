@@ -14,8 +14,18 @@ from typing import Any, Literal
 
 import sqlite_vec
 
+from .exceptions import ConnectionError as VecConnectionError
+from .exceptions import TableNotFoundError
 from .types import Embeddings, Metadata, Result, Rowids, SimilaritySearchResult, Text
 from .utils import deserialize_f32, serialize_f32
+from .validation import (
+    validate_dimension,
+    validate_embeddings_match,
+    validate_limit,
+    validate_offset,
+    validate_table_name,
+    validate_top_k,
+)
 
 
 class SQLiteVecClient:
@@ -30,13 +40,28 @@ class SQLiteVecClient:
 
     @staticmethod
     def create_connection(db_path: str) -> sqlite3.Connection:
-        """Create a SQLite connection with sqlite-vec extension loaded."""
-        connection = sqlite3.connect(db_path)
-        connection.row_factory = sqlite3.Row
-        connection.enable_load_extension(True)
-        sqlite_vec.load(connection)
-        connection.enable_load_extension(False)
-        return connection
+        """Create a SQLite connection with sqlite-vec extension loaded.
+
+        Args:
+            db_path: Path to SQLite database file
+
+        Returns:
+            SQLite connection with sqlite-vec loaded
+
+        Raises:
+            VecConnectionError: If connection or extension loading fails
+        """
+        try:
+            connection = sqlite3.connect(db_path)
+            connection.row_factory = sqlite3.Row
+            connection.enable_load_extension(True)
+            sqlite_vec.load(connection)
+            connection.enable_load_extension(False)
+            return connection
+        except sqlite3.Error as e:
+            raise VecConnectionError(f"Failed to connect to database: {e}") from e
+        except Exception as e:
+            raise VecConnectionError(f"Failed to load sqlite-vec extension: {e}") from e
 
     @staticmethod
     def rows_to_results(rows: list[sqlite3.Row]) -> list[Result]:
@@ -52,7 +77,17 @@ class SQLiteVecClient:
         ]
 
     def __init__(self, table: str, db_path: str) -> None:
-        """Initialize the client for a given base table and database file."""
+        """Initialize the client for a given base table and database file.
+
+        Args:
+            table: Name of the base table
+            db_path: Path to SQLite database file
+
+        Raises:
+            TableNameError: If table name is invalid
+            VecConnectionError: If connection fails
+        """
+        validate_table_name(table)
         self.table = table
         self.connection = self.create_connection(db_path)
 
@@ -74,7 +109,16 @@ class SQLiteVecClient:
         dim: int,
         distance: Literal["L1", "L2", "cosine"] = "cosine",
     ) -> None:
-        """Create base table, vector table, and triggers to keep them in sync."""
+        """Create base table, vector table, and triggers to keep them in sync.
+
+        Args:
+            dim: Embedding dimension (must be positive)
+            distance: Distance metric for similarity search
+
+        Raises:
+            ValidationError: If dimension is invalid
+        """
+        validate_dimension(dim)
         self.connection.execute(
             f"""
             CREATE TABLE IF NOT EXISTS {self.table}
@@ -136,25 +180,46 @@ class SQLiteVecClient:
         embedding: Embeddings,
         top_k: int = 5,
     ) -> list[SimilaritySearchResult]:
-        """Return top-k nearest neighbors for the given embedding."""
-        cursor = self.connection.cursor()
-        cursor.execute(
-            f"""
-            SELECT
-                e.rowid AS rowid,
-                text,
-                distance
-            FROM {self.table} AS e
-            INNER JOIN {self.table}_vec AS v on v.rowid = e.rowid
-            WHERE
-                v.text_embedding MATCH ?
-                AND k = ?
-            ORDER BY v.distance
-            """,
-            [serialize_f32(embedding), top_k],
-        )
-        results = cursor.fetchall()
-        return [(row["rowid"], row["text"], row["distance"]) for row in results]
+        """Return top-k nearest neighbors for the given embedding.
+
+        Args:
+            embedding: Query embedding vector
+            top_k: Number of results to return (must be positive)
+
+        Returns:
+            List of (rowid, text, distance) tuples
+
+        Raises:
+            ValidationError: If top_k is invalid
+            TableNotFoundError: If table doesn't exist
+        """
+        validate_top_k(top_k)
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(
+                f"""
+                SELECT
+                    e.rowid AS rowid,
+                    text,
+                    distance
+                FROM {self.table} AS e
+                INNER JOIN {self.table}_vec AS v on v.rowid = e.rowid
+                WHERE
+                    v.text_embedding MATCH ?
+                    AND k = ?
+                ORDER BY v.distance
+                """,
+                [serialize_f32(embedding), top_k],
+            )
+            results = cursor.fetchall()
+            return [(row["rowid"], row["text"], row["distance"]) for row in results]
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e).lower():
+                raise TableNotFoundError(
+                    f"Table '{self.table}' or '{self.table}_vec' does not exist. "
+                    "Call create_table() first."
+                ) from e
+            raise
 
     def add(
         self,
@@ -162,31 +227,52 @@ class SQLiteVecClient:
         embeddings: list[Embeddings],
         metadata: list[Metadata] | None = None,
     ) -> Rowids:
-        """Insert texts with embeddings (and optional metadata) and return rowids."""
-        max_id = self.connection.execute(
-            f"SELECT max(rowid) as rowid FROM {self.table}"
-        ).fetchone()["rowid"]
+        """Insert texts with embeddings (and optional metadata) and return rowids.
 
-        if max_id is None:
-            max_id = 0
+        Args:
+            texts: List of text strings
+            embeddings: List of embedding vectors
+            metadata: Optional list of metadata dicts
 
-        if metadata is None:
-            metadata = [dict() for _ in texts]
+        Returns:
+            List of rowids for inserted records
 
-        data_input = [
-            (text, json.dumps(md), serialize_f32(embedding))
-            for text, md, embedding in zip(texts, metadata, embeddings)
-        ]
-        self.connection.executemany(
-            f"""INSERT INTO {self.table}(text, metadata, text_embedding)
-            VALUES (?,?,?)""",
-            data_input,
-        )
-        self.connection.commit()
-        results = self.connection.execute(
-            f"SELECT rowid FROM {self.table} WHERE rowid > {max_id}"
-        )
-        return [row["rowid"] for row in results]
+        Raises:
+            ValidationError: If list lengths don't match
+            TableNotFoundError: If table doesn't exist
+        """
+        validate_embeddings_match(texts, embeddings, metadata)
+        try:
+            max_id = self.connection.execute(
+                f"SELECT max(rowid) as rowid FROM {self.table}"
+            ).fetchone()["rowid"]
+
+            if max_id is None:
+                max_id = 0
+
+            if metadata is None:
+                metadata = [dict() for _ in texts]
+
+            data_input = [
+                (text, json.dumps(md), serialize_f32(embedding))
+                for text, md, embedding in zip(texts, metadata, embeddings)
+            ]
+            self.connection.executemany(
+                f"""INSERT INTO {self.table}(text, metadata, text_embedding)
+                VALUES (?,?,?)""",
+                data_input,
+            )
+            self.connection.commit()
+            results = self.connection.execute(
+                f"SELECT rowid FROM {self.table} WHERE rowid > {max_id}"
+            )
+            return [row["rowid"] for row in results]
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e).lower():
+                raise TableNotFoundError(
+                    f"Table '{self.table}' does not exist. Call create_table() first."
+                ) from e
+            raise
 
     def get_by_id(self, rowid: int) -> Result | None:
         """Get a single record by rowid; return `None` if not found."""
@@ -251,7 +337,21 @@ class SQLiteVecClient:
         offset: int = 0,
         order: Literal["asc", "desc"] = "asc",
     ) -> list[Result]:
-        """List records with pagination and order by rowid."""
+        """List records with pagination and order by rowid.
+
+        Args:
+            limit: Maximum number of results (must be positive)
+            offset: Number of results to skip (must be non-negative)
+            order: Sort order ('asc' or 'desc')
+
+        Returns:
+            List of (rowid, text, metadata, embedding) tuples
+
+        Raises:
+            ValidationError: If limit or offset is invalid
+        """
+        validate_limit(limit)
+        validate_offset(offset)
         cursor = self.connection.cursor()
         cursor.execute(
             f"""

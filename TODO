@@ -3,15 +3,15 @@
 ## 🔴 Critical Priority (Security & Stability)
 
 ### Security
-- [ ] Fix SQL injection vulnerability (table name sanitization)
-- [ ] Add table name validation (alphanumeric and underscore only)
-- [ ] Add input validation (dim, top_k, limit, etc.)
+- [x] Fix SQL injection vulnerability (table name sanitization)
+- [x] Add table name validation (alphanumeric and underscore only)
+- [x] Add input validation (dim, top_k, limit, etc.)
 
 ### Error Handling
-- [ ] Create custom exception classes (VecClientError, TableNotFoundError, etc.)
-- [ ] Add exception handling to all public methods
-- [ ] Write user-friendly error messages
-- [ ] Improve connection error handling
+- [x] Create custom exception classes (VecClientError, TableNotFoundError, etc.)
+- [x] Add exception handling to all public methods
+- [x] Write user-friendly error messages
+- [x] Improve connection error handling
 
 ## 🟡 High Priority (Quality & Reliability)
 
