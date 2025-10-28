@@ -14,6 +14,7 @@ A tiny, lightweight Pythonic helper around [sqlite-vec](https://github.com/asg01
 - **Typed results**: Clear return types for results and searches.
 - **Filtering helpers**: Fetch by `rowid`, `text`, or `metadata`.
 - **Pagination & sorting**: List records with `limit`, `offset`, and order.
+- **Bulk operations**: Efficient `update_many()`, `get_all()` generator, and transaction support.
 
 ## Requirements
 - Python 3.9+
@@ -63,6 +64,31 @@ rows = client.get_many(rowids)
 
 client.close()
 ```
+
+## Bulk Operations
+
+The client provides optimized methods for bulk operations:
+
+```python
+# Bulk update multiple records
+updates = [
+    (rowid1, "new text", {"key": "value"}, None),
+    (rowid2, None, {"updated": True}, new_embedding),
+]
+count = client.update_many(updates)
+
+# Memory-efficient iteration over all records
+for rowid, text, metadata, embedding in client.get_all(batch_size=100):
+    process(text)
+
+# Atomic transactions
+with client.transaction():
+    client.add(texts, embeddings)
+    client.update_many(updates)
+    client.delete_many(old_ids)
+```
+
+See [examples/batch_operations.py](examples/batch_operations.py) for more examples.
 
 ## How it works
 `SQLiteVecClient` stores data in `{table}` and mirrors embeddings in `{table}_vec` (a `vec0` virtual table). SQLite triggers keep both in sync when rows are inserted, updated, or deleted. Embeddings are serialized as packed float32 bytes for compact storage.

@@ -247,3 +247,58 @@ class TestContextManager:
         with SQLiteVecClient(table="test", db_path=temp_db) as client:
             client.create_table(dim=3)
             assert client.count() == 0
+
+
+@pytest.mark.integration
+class TestBulkOperations:
+    """Tests for bulk operations."""
+
+    def test_update_many(self, client_with_table, sample_texts, sample_embeddings):
+        """Test updating multiple records."""
+        rowids = client_with_table.add(texts=sample_texts, embeddings=sample_embeddings)
+        updates = [
+            (rowids[0], "updated 1", None, None),
+            (rowids[1], "updated 2", {"key": "val"}, None),
+        ]
+        count = client_with_table.update_many(updates)
+        assert count == 2
+        result = client_with_table.get_by_id(rowids[0])
+        assert result[1] == "updated 1"
+
+    def test_update_many_empty(self, client_with_table):
+        """Test update_many with empty list."""
+        count = client_with_table.update_many([])
+        assert count == 0
+
+    def test_get_all_generator(self, client_with_table):
+        """Test get_all generator."""
+        texts = [f"text {i}" for i in range(10)]
+        embeddings = [[float(i)] * 3 for i in range(10)]
+        client_with_table.add(texts=texts, embeddings=embeddings)
+        results = list(client_with_table.get_all(batch_size=3))
+        assert len(results) == 10
+
+    def test_get_all_empty_table(self, client_with_table):
+        """Test get_all on empty table."""
+        results = list(client_with_table.get_all())
+        assert len(results) == 0
+
+    def test_transaction_commit(
+        self, client_with_table, sample_texts, sample_embeddings
+    ):
+        """Test transaction commits on success."""
+        with client_with_table.transaction():
+            client_with_table.add(texts=sample_texts, embeddings=sample_embeddings)
+        assert client_with_table.count() == 3
+
+    def test_transaction_rollback(
+        self, client_with_table, sample_texts, sample_embeddings
+    ):
+        """Test transaction rolls back on error."""
+        try:
+            with client_with_table.transaction():
+                client_with_table.add(texts=sample_texts, embeddings=sample_embeddings)
+                raise ValueError("Test error")
+        except ValueError:
+            pass
+        assert client_with_table.count() == 0

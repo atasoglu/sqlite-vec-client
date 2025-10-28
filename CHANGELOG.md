@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `update_many()` - Bulk update multiple records in a single transaction
+- `get_all()` - Memory-efficient generator for iterating over all records
+- `transaction()` - Context manager for atomic multi-operation transactions
+- Comprehensive tests for bulk operations (92% coverage)
+- Updated batch_operations.py example with new features
 - CONTRIBUTING.md with contribution guidelines
 - CHANGELOG.md for tracking changes
 

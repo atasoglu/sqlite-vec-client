@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Generator
+from contextlib import contextmanager
 from types import TracebackType
 from typing import Any, Literal
 
@@ -96,6 +98,7 @@ class SQLiteVecClient:
         """
         validate_table_name(table)
         self.table = table
+        self._in_transaction = False
         logger.debug(f"Initializing SQLiteVecClient for table: {table}")
         self.connection = self.create_connection(db_path)
 
@@ -278,7 +281,8 @@ class SQLiteVecClient:
                 VALUES (?,?,?)""",
                 data_input,
             )
-            self.connection.commit()
+            if not self._in_transaction:
+                self.connection.commit()
             results = self.connection.execute(
                 f"SELECT rowid FROM {self.table} WHERE rowid > {max_id}"
             )
@@ -419,7 +423,8 @@ class SQLiteVecClient:
         sql = f"UPDATE {self.table} SET " + ", ".join(sets) + " WHERE rowid = ?"
         cur = self.connection.cursor()
         cur.execute(sql, params)
-        self.connection.commit()
+        if not self._in_transaction:
+            self.connection.commit()
         updated = cur.rowcount > 0
         if updated:
             logger.debug(f"Successfully updated record with rowid={rowid}")
@@ -430,7 +435,8 @@ class SQLiteVecClient:
         logger.debug(f"Deleting record with rowid={rowid}")
         cur = self.connection.cursor()
         cur.execute(f"DELETE FROM {self.table} WHERE rowid = ?", [rowid])
-        self.connection.commit()
+        if not self._in_transaction:
+            self.connection.commit()
         deleted = cur.rowcount > 0
         if deleted:
             logger.debug(f"Successfully deleted record with rowid={rowid}")
@@ -447,10 +453,75 @@ class SQLiteVecClient:
             f"DELETE FROM {self.table} WHERE rowid IN ({placeholders})",
             rowids,
         )
-        self.connection.commit()
+        if not self._in_transaction:
+            self.connection.commit()
         deleted_count = cur.rowcount
         logger.info(f"Deleted {deleted_count} records from table '{self.table}'")
         return deleted_count
+
+    def update_many(
+        self,
+        updates: list[tuple[int, str | None, Metadata | None, Embeddings | None]],
+    ) -> int:
+        """Update multiple records in a single transaction.
+
+        Args:
+            updates: List of (rowid, text, metadata, embedding) tuples.
+                     Any field except rowid can be None to skip updating.
+
+        Returns:
+            Number of rows updated
+        """
+        if not updates:
+            return 0
+        logger.debug(f"Updating {len(updates)} records")
+        updated_count = 0
+        for rowid, text, metadata, embedding in updates:
+            if self.update(rowid, text=text, metadata=metadata, embedding=embedding):
+                updated_count += 1
+        logger.info(f"Updated {updated_count} records in table '{self.table}'")
+        return updated_count
+
+    def get_all(self, batch_size: int = 100) -> Generator[Result, None, None]:
+        """Yield all records in batches for memory-efficient iteration.
+
+        Args:
+            batch_size: Number of records to fetch per batch
+
+        Yields:
+            Individual (rowid, text, metadata, embedding) tuples
+        """
+        validate_limit(batch_size)
+        logger.debug(f"Fetching all records with batch_size={batch_size}")
+        offset = 0
+        while True:
+            batch = self.list_results(limit=batch_size, offset=offset)
+            if not batch:
+                break
+            yield from batch
+            offset += batch_size
+
+    @contextmanager
+    def transaction(self) -> Generator[None, None, None]:
+        """Context manager for atomic transactions.
+
+        Example:
+            with client.transaction():
+                client.add([...], [...])
+                client.update_many([...])
+        """
+        logger.debug("Starting transaction")
+        self._in_transaction = True
+        try:
+            yield
+            self.connection.commit()
+            logger.debug("Transaction committed")
+        except Exception as e:
+            self.connection.rollback()
+            logger.error(f"Transaction rolled back: {e}")
+            raise
+        finally:
+            self._in_transaction = False
 
     def close(self) -> None:
         """Close the underlying SQLite connection, suppressing close errors."""

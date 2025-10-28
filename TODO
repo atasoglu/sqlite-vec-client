@@ -63,23 +63,23 @@
 
 ### Performance
 - [ ] Connection pooling support
-- [ ] Batch update operation
-- [ ] Lazy loading option
+- [x] Batch update operation
+- [x] Lazy loading option
 - [ ] Index strategy documentation
 - [ ] Benchmark tests
 
 ### New Features
 - [ ] Partial search on JSON metadata (JSON_EXTRACT)
 - [ ] Metadata field filtering (key-value based)
-- [ ] Transaction context manager
+- [x] Transaction context manager
 - [ ] Async/await support (aiosqlite)
 - [ ] Export/import functions (JSON, CSV)
 - [ ] Table migration utilities
 - [ ] Backup/restore functions
 
 ### API Improvements
-- [ ] Optimized methods for bulk operations
-- [ ] Streaming results (generator pattern)
+- [x] Optimized methods for bulk operations
+- [x] Streaming results (generator pattern)
 - [ ] Custom distance metric support
 - [ ] Multi-vector support (multiple embedding fields)
 - [ ] Soft delete support

@@ -4,7 +4,10 @@ Demonstrates:
 - Bulk insert
 - Batch retrieval
 - Pagination
+- Bulk update
 - Bulk delete
+- Transaction management
+- Memory-efficient iteration
 """
 
 from sqlite_vec_client import SQLiteVecClient
@@ -40,6 +43,31 @@ def main():
     selected_ids = rowids[10:15]
     selected_products = client.get_many(selected_ids)
     print(f"\nRetrieved {len(selected_products)} specific products")
+
+    # Bulk update
+    updates = [
+        (rowids[0], "Updated Product 0", {"price": 999}, None),
+        (rowids[1], "Updated Product 1", {"price": 888}, None),
+        (rowids[2], None, {"price": 777}, None),  # Only update metadata
+    ]
+    updated_count = client.update_many(updates)
+    print(f"\nUpdated {updated_count} products")
+
+    # Transaction example - atomic operations
+    print("\nPerforming atomic transaction...")
+    with client.transaction():
+        new_texts = [f"New Product {i}" for i in range(5)]
+        new_embeddings = [[0.5] * 64 for _ in range(5)]
+        client.add(texts=new_texts, embeddings=new_embeddings)
+        client.delete_many(rowids[50:55])
+    print(f"Transaction completed. Total products: {client.count()}")
+
+    # Memory-efficient iteration over all records
+    print("\nIterating over all products (first 5):")
+    for i, (rowid, text, meta, _) in enumerate(client.get_all(batch_size=20)):
+        if i >= 5:
+            break
+        print(f"  [{rowid}] {text}")
 
     # Bulk delete
     to_delete = rowids[:20]
