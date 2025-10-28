@@ -15,7 +15,6 @@ from .exceptions import (
 from .logger import get_logger
 
 __all__ = [
-    "__version__",
     "SQLiteVecClient",
     "VecClientError",
     "ValidationError",
