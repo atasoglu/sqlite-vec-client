@@ -3,8 +3,6 @@
 Exposes `SQLiteVecClient` as the primary entry point.
 """
 
-__version__ = "0.2.0"
-
 from .base import SQLiteVecClient
 from .exceptions import (
     ConnectionError,
