@@ -28,18 +28,20 @@ jobs:
     - name: Build package
       run: python -m build
 
-    - name: Build Changelog
+    - name: Extract changelog
       id: changelog
-      uses: mikepenz/release-changelog-builder-action@v4
-      with:
-        configuration: ".github/changelog-config.json"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        sed -n "/^## \[$VERSION\]/,/^## \[/p" CHANGELOG.md | sed '1d;$d' > release_notes.txt
+        if [ ! -s release_notes.txt ]; then
+          echo "Release $VERSION" > release_notes.txt
+        fi
+        cat release_notes.txt
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        body: ${{ steps.changelog.outputs.changelog }}
+        body_path: release_notes.txt
         generate_release_notes: false
 
     - name: Publish to PyPI
