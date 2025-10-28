@@ -1,0 +1,34 @@
+# Benchmark Configuration for sqlite-vec-client
+
+# Dataset sizes to test (number of records)
+dataset_sizes:
+  - 100
+  - 1000
+  - 10000
+  - 50000
+
+# Embedding dimension
+dimension: 384
+
+# Distance metric (cosine, l2, or inner_product)
+distance: cosine
+
+# Database modes to test (file, memory, or both)
+db_modes:
+  - file
+  - memory
+
+# Similarity search configuration
+similarity_search:
+  # Number of iterations for each search benchmark
+  iterations: 100
+  # Top-k values to test
+  top_k_values:
+    - 10
+    - 100
+
+# Batch size for get_all operation
+batch_size: 1000
+
+# Output format (grid, fancy_grid, simple, plain, or any tabulate format)
+table_format: grid
