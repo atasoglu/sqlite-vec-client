@@ -1,8 +1,8 @@
 name: Publish to PyPI
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
 
 jobs:
   publish:
@@ -10,11 +10,35 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+
+    - name: Get version from pyproject.toml
+      id: get_version
+      run: |
+        VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+        echo "version=v$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_version.outputs.version }}
+        release_name: Release ${{ steps.get_version.outputs.version }}
+        body: |
+          ## What's Changed
+          ${{ github.event.head_commit.message }}
+
+          **Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ steps.get_version.outputs.version }}
+        draft: false
+        prerelease: false
 
     - name: Install build dependencies
       run: |
