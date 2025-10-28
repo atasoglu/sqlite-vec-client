@@ -1,12 +1,14 @@
 """Type aliases used across the sqlite-vec client package."""
 
-from typing import List, Dict, Any, Tuple, TypeAlias
+from typing import Any
+
+from typing_extensions import TypeAlias
 
 Text: TypeAlias = str
 Rowid: TypeAlias = int
 Distance: TypeAlias = float
-Metadata: TypeAlias = Dict[str, Any]
-Embeddings: TypeAlias = List[float]
-Rowids: TypeAlias = List[Rowid]
-Result: TypeAlias = Tuple[Rowid, Text, Metadata, Embeddings]
-SimilaritySearchResult: TypeAlias = Tuple[Rowid, Text, Distance]
+Metadata: TypeAlias = dict[str, Any]
+Embeddings: TypeAlias = list[float]
+Rowids: TypeAlias = list[Rowid]
+Result: TypeAlias = tuple[Rowid, Text, Metadata, Embeddings]
+SimilaritySearchResult: TypeAlias = tuple[Rowid, Text, Distance]

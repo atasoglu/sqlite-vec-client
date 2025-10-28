@@ -3,6 +3,27 @@
 Exposes `SQLiteVecClient` as the primary entry point.
 """
 
-from .base import SQLiteVecClient
+__version__ = "0.2.0"
 
-__all__ = ["SQLiteVecClient"]
+from .base import SQLiteVecClient
+from .exceptions import (
+    ConnectionError,
+    DimensionMismatchError,
+    TableNameError,
+    TableNotFoundError,
+    ValidationError,
+    VecClientError,
+)
+from .logger import get_logger
+
+__all__ = [
+    "__version__",
+    "SQLiteVecClient",
+    "VecClientError",
+    "ValidationError",
+    "TableNameError",
+    "TableNotFoundError",
+    "ConnectionError",
+    "DimensionMismatchError",
+    "get_logger",
+]
