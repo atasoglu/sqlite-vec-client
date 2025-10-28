@@ -62,6 +62,26 @@ client.close()
 ## How it works
 `SQLiteVecClient` stores data in `{table}` and mirrors embeddings in `{table}_vec` (a `vec0` virtual table). SQLite triggers keep both in sync when rows are inserted, updated, or deleted. Embeddings are serialized as packed float32 bytes for compact storage.
 
+## Development
+
+Install development dependencies:
+```bash
+pip install -r requirements-dev.txt
+pre-commit install
+```
+
+Run tests:
+```bash
+pytest --cov=sqlite_vec_client
+```
+
+Format and lint:
+```bash
+ruff check .
+ruff format .
+mypy sqlite_vec_client/
+```
+
 ## Contributing
 Contributions are very welcome—issues, ideas, and PRs help this project grow!
 

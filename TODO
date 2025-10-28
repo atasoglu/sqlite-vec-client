@@ -1,0 +1,120 @@
+# TODO List - sqlite-vec-client
+
+## 🔴 Critical Priority (Security & Stability)
+
+### Security
+- [ ] Fix SQL injection vulnerability (table name sanitization)
+- [ ] Add table name validation (alphanumeric and underscore only)
+- [ ] Add input validation (dim, top_k, limit, etc.)
+
+### Error Handling
+- [ ] Create custom exception classes (VecClientError, TableNotFoundError, etc.)
+- [ ] Add exception handling to all public methods
+- [ ] Write user-friendly error messages
+- [ ] Improve connection error handling
+
+## 🟡 High Priority (Quality & Reliability)
+
+### Test Suite
+- [ ] Setup pytest and configuration
+- [ ] Unit tests (utils, types)
+- [ ] Integration tests (SQLiteVecClient)
+- [ ] Edge case tests
+- [ ] Create fixtures
+- [ ] Target 80%+ test coverage
+- [ ] Mock tests (sqlite-vec extension)
+
+### Examples
+- [ ] examples/basic_usage.py
+- [ ] examples/metadata_filtering.py
+- [ ] examples/batch_operations.py
+- [ ] examples/context_manager.py
+- [ ] examples/real_world_scenario.py
+
+### Documentation
+- [ ] Create CONTRIBUTING.md
+- [ ] Start CHANGELOG.md
+- [ ] API reference documentation (Sphinx or MkDocs)
+- [ ] Migration guide (for version updates)
+- [ ] Add troubleshooting section
+
+## 🟢 Medium Priority (Development & Tooling)
+
+### Packaging & Tooling
+- [ ] Migrate from setup.py to pyproject.toml
+- [x] Add mypy configuration
+- [x] Add ruff or black formatter
+- [x] Configure pre-commit hooks
+- [x] Create requirements-dev.txt
+
+### CI/CD
+- [ ] GitHub Actions workflow (.github/workflows/test.yml)
+- [ ] Automated test execution
+- [ ] Code coverage reporting
+- [ ] Automated PyPI publishing
+- [ ] Linting and type checking
+
+### Logging
+- [ ] Python logging module integration
+- [ ] Log level configuration
+- [ ] Debug mode support
+- [ ] Query logging (optional)
+
+## 🔵 Low Priority (New Features)
+
+### Performance
+- [ ] Connection pooling support
+- [ ] Batch update operation
+- [ ] Lazy loading option
+- [ ] Index strategy documentation
+- [ ] Benchmark tests
+
+### New Features
+- [ ] Partial search on JSON metadata (JSON_EXTRACT)
+- [ ] Metadata field filtering (key-value based)
+- [ ] Transaction context manager
+- [ ] Async/await support (aiosqlite)
+- [ ] Export/import functions (JSON, CSV)
+- [ ] Table migration utilities
+- [ ] Backup/restore functions
+
+### API Improvements
+- [ ] Optimized methods for bulk operations
+- [ ] Streaming results (generator pattern)
+- [ ] Custom distance metric support
+- [ ] Multi-vector support (multiple embedding fields)
+- [ ] Soft delete support
+
+## 📝 Documentation Improvements
+
+- [ ] Add badges to README (PyPI, tests, coverage, license)
+- [ ] Publish performance benchmarks
+- [ ] Comparison with alternatives (Chroma, Qdrant, etc.)
+- [ ] Add architecture diagram
+- [ ] Video tutorial or blog post
+
+## 🔧 Technical Debt
+
+- [ ] Make type hints more specific (Generic types)
+- [ ] Warning system for deprecated methods
+- [ ] Define versioning strategy (semantic versioning)
+- [ ] Migration path for breaking changes
+- [ ] Create code review checklist
+
+## 📊 Metrics & Monitoring
+
+- [ ] Code coverage tracking
+- [ ] Performance metrics
+- [ ] Download statistics (PyPI)
+- [ ] Issue response time tracking
+- [ ] Community engagement metrics
+
+---
+
+## Notes
+
+- Mark tasks with [x] when completed
+- New tasks can be added
+- Priorities may change
+- Create separate branch for each major task
+- Update this file in PRs
