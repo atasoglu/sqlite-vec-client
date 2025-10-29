@@ -456,15 +456,25 @@ class SQLiteVecClient:
         if not rowids:
             return 0
         logger.debug(f"Deleting {len(rowids)} records")
-        placeholders = ",".join(["?"] * len(rowids))
+
+        # SQLite has a limit on SQL variables (typically 999 or 32766)
+        # Split into chunks to avoid "too many SQL variables" error
+        chunk_size = 500
         cur = self.connection.cursor()
-        cur.execute(
-            f"DELETE FROM {self.table} WHERE rowid IN ({placeholders})",
-            rowids,
-        )
+        deleted_count = 0
+
+        for i in range(0, len(rowids), chunk_size):
+            chunk = rowids[i : i + chunk_size]
+            placeholders = ",".join(["?"] * len(chunk))
+            cur.execute(
+                f"DELETE FROM {self.table} WHERE rowid IN ({placeholders})",
+                chunk,
+            )
+            deleted_count += cur.rowcount
+
         if not self._in_transaction:
             self.connection.commit()
-        deleted_count = cur.rowcount
+
         logger.info(f"Deleted {deleted_count} records from table '{self.table}'")
         return deleted_count
 
