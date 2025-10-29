@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import sqlite_vec
 
+from . import io as io_module
 from .exceptions import ConnectionError as VecConnectionError
 from .exceptions import TableNotFoundError
 from .logger import get_logger
@@ -634,6 +635,80 @@ class SQLiteVecClient:
                     "Call create_table() first."
                 ) from e
             raise
+
+    def export_to_json(
+        self,
+        filepath: str,
+        include_embeddings: bool = True,
+        filters: dict[str, Any] | None = None,
+        batch_size: int = 1000,
+    ) -> int:
+        """Export records to JSON Lines format.
+
+        Args:
+            filepath: Path to output file
+            include_embeddings: Whether to include embeddings in export
+            filters: Optional metadata filters to apply
+            batch_size: Number of records to process at once
+
+        Returns:
+            Number of records exported
+        """
+        return io_module.export_to_json(
+            self, filepath, include_embeddings, filters, batch_size
+        )
+
+    def import_from_json(
+        self, filepath: str, skip_duplicates: bool = False, batch_size: int = 1000
+    ) -> int:
+        """Import records from JSON Lines format.
+
+        Args:
+            filepath: Path to input file
+            skip_duplicates: Whether to skip records with existing rowids
+            batch_size: Number of records to import at once
+
+        Returns:
+            Number of records imported
+        """
+        return io_module.import_from_json(self, filepath, skip_duplicates, batch_size)
+
+    def export_to_csv(
+        self,
+        filepath: str,
+        include_embeddings: bool = False,
+        filters: dict[str, Any] | None = None,
+        batch_size: int = 1000,
+    ) -> int:
+        """Export records to CSV format.
+
+        Args:
+            filepath: Path to output file
+            include_embeddings: Whether to include embeddings (as JSON string)
+            filters: Optional metadata filters to apply
+            batch_size: Number of records to process at once
+
+        Returns:
+            Number of records exported
+        """
+        return io_module.export_to_csv(
+            self, filepath, include_embeddings, filters, batch_size
+        )
+
+    def import_from_csv(
+        self, filepath: str, skip_duplicates: bool = False, batch_size: int = 1000
+    ) -> int:
+        """Import records from CSV format.
+
+        Args:
+            filepath: Path to input file
+            skip_duplicates: Whether to skip records with existing rowids
+            batch_size: Number of records to import at once
+
+        Returns:
+            Number of records imported
+        """
+        return io_module.import_from_csv(self, filepath, skip_duplicates, batch_size)
 
     @contextmanager
     def transaction(self) -> Generator[None, None, None]:

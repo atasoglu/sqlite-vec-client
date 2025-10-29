@@ -18,14 +18,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test coverage for metadata filtering (unit, integration, and security tests)
 - New example `advanced_metadata_queries.py` demonstrating nested paths and complex queries
 - Updated `metadata_filtering.py` example with new filtering methods
+- **Export/import functionality**: New methods for data portability
+  - `export_to_json()` - Export records to JSON Lines format
+  - `import_from_json()` - Import records from JSON Lines format
+  - `export_to_csv()` - Export records to CSV format
+  - `import_from_csv()` - Import records from CSV format
+- Support for filtered exports using metadata filters
+- Batch processing for memory-efficient import/export of large datasets
+- Optional embedding inclusion in exports
+- New `io` module with import/export utilities
+- Comprehensive tests for import/export functionality
+- New example `export_import_example.py` demonstrating backup/restore workflows
 
 ### Security
 - SQL injection prevention in metadata filter keys
 - Validation of JSON paths to prevent malicious queries
 - Parameterized queries for all metadata filtering operations
 
+### Improved
+- Data migration workflows now much easier
+- Backup and restore capabilities for production use
+- Interoperability with external systems via CSV/JSON
+
 ### Documentation
 - Added "Metadata Filtering" section to README with examples
+- Added "Export/Import" section to README with examples
 - Updated examples list in README
 - Added comprehensive docstrings for new methods
 
@@ -190,7 +207,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
-- **2.2.0** - Added metadata filtering with JSON_EXTRACT support
+- **2.2.0** - Added metadata filtering with JSON_EXTRACT support and export/import functionality
 - **2.1.1** - Moved table name validation to create_table()
 - **2.1.0** - Added connection pooling support
 - **2.0.0** - Major refactor: simplified API, removed niche methods, cleaner naming

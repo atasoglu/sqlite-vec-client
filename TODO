@@ -72,8 +72,8 @@
 - [x] Partial search on JSON metadata (JSON_EXTRACT)
 - [x] Metadata field filtering (key-value based)
 - [x] Transaction context manager
+- [x] Export/import functions (JSON, CSV)
 - [ ] Async/await support (aiosqlite)
-- [ ] Export/import functions (JSON, CSV)
 - [ ] Table migration utilities
 - [ ] Backup/restore functions
 

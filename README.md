@@ -66,6 +66,37 @@ rows = client.get_many(rowids)
 client.close()
 ```
 
+## Export/Import
+
+Export and import data in JSON or CSV formats for backups, migrations, and data sharing:
+
+```python
+# Export to JSON (includes embeddings)
+count = client.export_to_json("backup.jsonl")
+
+# Export to CSV (human-readable, optional embeddings)
+count = client.export_to_csv("data.csv", include_embeddings=False)
+
+# Export filtered data
+count = client.export_to_json(
+    "important.jsonl",
+    filters={"priority": "high"}
+)
+
+# Import from JSON
+count = client.import_from_json("backup.jsonl")
+
+# Import from CSV
+count = client.import_from_csv("data.csv")
+
+# Backup and restore workflow
+client.export_to_json("backup.jsonl")
+# ... data loss ...
+client.import_from_json("backup.jsonl")
+```
+
+See [examples/export_import_example.py](examples/export_import_example.py) for more examples.
+
 ## Metadata Filtering
 
 Efficiently filter records by metadata fields using SQLite's JSON functions:
@@ -255,6 +286,7 @@ Edit [benchmarks/config.yaml](benchmarks/config.yaml) to customize:
   - [basic_usage.py](examples/basic_usage.py) - Basic CRUD operations
   - [metadata_filtering.py](examples/metadata_filtering.py) - Metadata filtering and queries
   - [advanced_metadata_queries.py](examples/advanced_metadata_queries.py) - Advanced metadata filtering with nested paths
+  - [export_import_example.py](examples/export_import_example.py) - Export/import data in JSON and CSV formats
   - [transaction_example.py](examples/transaction_example.py) - Transaction management with all CRUD operations
   - [batch_operations.py](examples/batch_operations.py) - Bulk operations
   - [logging_example.py](examples/logging_example.py) - Logging configuration
