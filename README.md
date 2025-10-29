@@ -197,6 +197,21 @@ mypy sqlite_vec_client/
 ruff check . && ruff format . && mypy sqlite_vec_client/ && pytest
 ```
 
+### Benchmarks
+
+**Run benchmarks:**
+```bash
+python -m benchmarks
+```
+
+**Configure benchmarks:**
+Edit [benchmarks/config.yaml](benchmarks/config.yaml) to customize:
+- Dataset sizes (default: 100, 1000, 10000, 50000)
+- Embedding dimension (default: 384)
+- Distance metric (default: cosine)
+- Database modes (file, memory)
+- Similarity search iterations and top-k values
+
 ## Documentation
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
@@ -205,6 +220,8 @@ ruff check . && ruff format . && mypy sqlite_vec_client/ && pytest
 - [Examples](examples/) - Usage examples
   - [basic_usage.py](examples/basic_usage.py) - Basic CRUD operations
   - [logging_example.py](examples/logging_example.py) - Logging configuration
+  - [batch_operations.py](examples/batch_operations.py) - Bulk operations
+- [Benchmarks](benchmarks/) - Performance benchmarks
 
 ## Contributing
 
