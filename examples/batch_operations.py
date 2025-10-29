@@ -26,17 +26,12 @@ def main():
     rowids = client.add(texts=texts, embeddings=embeddings, metadata=metadata)
     print(f"Inserted {len(rowids)} products")
 
-    # Pagination - list first page
+    # Pagination using get_all with batch_size
     page_size = 10
-    page_1 = client.list_results(limit=page_size, offset=0, order="asc")
-    print(f"\nPage 1 ({len(page_1)} items):")
-    for rowid, text, meta, _ in page_1[:3]:
-        print(f"  [{rowid}] {text} - ${meta['price']}")
-
-    # Pagination - list second page
-    page_2 = client.list_results(limit=page_size, offset=page_size, order="asc")
-    print(f"\nPage 2 ({len(page_2)} items):")
-    for rowid, text, meta, _ in page_2[:3]:
+    print(f"\nFirst {page_size} items:")
+    for i, (rowid, text, meta, _) in enumerate(client.get_all(batch_size=page_size)):
+        if i >= 3:
+            break
         print(f"  [{rowid}] {text} - ${meta['price']}")
 
     # Batch retrieval

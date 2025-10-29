@@ -113,19 +113,17 @@ class TestSimilaritySearch:
 class TestGetRecords:
     """Tests for get methods."""
 
-    def test_get_by_id_existing(
-        self, client_with_table, sample_texts, sample_embeddings
-    ):
+    def test_get_existing(self, client_with_table, sample_texts, sample_embeddings):
         """Test getting existing record by ID."""
         rowids = client_with_table.add(texts=sample_texts, embeddings=sample_embeddings)
-        result = client_with_table.get_by_id(rowids[0])
+        result = client_with_table.get(rowids[0])
         assert result is not None
         assert result[0] == rowids[0]
         assert result[1] == sample_texts[0]
 
-    def test_get_by_id_nonexistent(self, client_with_table):
+    def test_get_nonexistent(self, client_with_table):
         """Test getting nonexistent record returns None."""
-        result = client_with_table.get_by_id(999)
+        result = client_with_table.get(999)
         assert result is None
 
     def test_get_many(self, client_with_table, sample_texts, sample_embeddings):
@@ -139,13 +137,6 @@ class TestGetRecords:
         results = client_with_table.get_many([])
         assert results == []
 
-    def test_get_by_text(self, client_with_table, sample_texts, sample_embeddings):
-        """Test getting records by text."""
-        client_with_table.add(texts=sample_texts, embeddings=sample_embeddings)
-        results = client_with_table.get_by_text(sample_texts[0])
-        assert len(results) >= 1
-        assert results[0][1] == sample_texts[0]
-
 
 @pytest.mark.integration
 class TestUpdateRecords:
@@ -158,7 +149,7 @@ class TestUpdateRecords:
         )
         updated = client_with_table.update(rowids[0], text="updated text")
         assert updated is True
-        result = client_with_table.get_by_id(rowids[0])
+        result = client_with_table.get(rowids[0])
         assert result[1] == "updated text"
 
     def test_update_metadata(self, client_with_table, sample_texts, sample_embeddings):
@@ -169,7 +160,7 @@ class TestUpdateRecords:
         new_metadata = {"key": "value"}
         updated = client_with_table.update(rowids[0], metadata=new_metadata)
         assert updated is True
-        result = client_with_table.get_by_id(rowids[0])
+        result = client_with_table.get(rowids[0])
         assert result[2] == new_metadata
 
     def test_update_nonexistent(self, client_with_table):
@@ -182,18 +173,18 @@ class TestUpdateRecords:
 class TestDeleteRecords:
     """Tests for delete methods."""
 
-    def test_delete_by_id(self, client_with_table, sample_texts, sample_embeddings):
+    def test_delete(self, client_with_table, sample_texts, sample_embeddings):
         """Test deleting record by ID."""
         rowids = client_with_table.add(
             texts=[sample_texts[0]], embeddings=[sample_embeddings[0]]
         )
-        deleted = client_with_table.delete_by_id(rowids[0])
+        deleted = client_with_table.delete(rowids[0])
         assert deleted is True
         assert client_with_table.count() == 0
 
     def test_delete_nonexistent(self, client_with_table):
         """Test deleting nonexistent record returns False."""
-        deleted = client_with_table.delete_by_id(999)
+        deleted = client_with_table.delete(999)
         assert deleted is False
 
     def test_delete_many(self, client_with_table, sample_texts, sample_embeddings):
@@ -205,37 +196,19 @@ class TestDeleteRecords:
 
 
 @pytest.mark.integration
-class TestListResults:
-    """Tests for list_results method."""
+class TestCountRecords:
+    """Tests for count method."""
 
-    def test_list_results_basic(
+    def test_count_empty_table(self, client_with_table):
+        """Test counting records in empty table."""
+        assert client_with_table.count() == 0
+
+    def test_count_with_records(
         self, client_with_table, sample_texts, sample_embeddings
     ):
-        """Test basic listing of results."""
+        """Test counting records after adding."""
         client_with_table.add(texts=sample_texts, embeddings=sample_embeddings)
-        results = client_with_table.list_results()
-        assert len(results) == 3
-
-    def test_list_results_with_limit(
-        self, client_with_table, sample_texts, sample_embeddings
-    ):
-        """Test listing with limit."""
-        client_with_table.add(texts=sample_texts, embeddings=sample_embeddings)
-        results = client_with_table.list_results(limit=2)
-        assert len(results) == 2
-
-    def test_list_results_with_offset(
-        self, client_with_table, sample_texts, sample_embeddings
-    ):
-        """Test listing with offset."""
-        client_with_table.add(texts=sample_texts, embeddings=sample_embeddings)
-        results = client_with_table.list_results(limit=10, offset=2)
-        assert len(results) == 1
-
-    def test_list_results_invalid_limit(self, client_with_table):
-        """Test that invalid limit raises error."""
-        with pytest.raises(ValidationError):
-            client_with_table.list_results(limit=0)
+        assert client_with_table.count() == 3
 
 
 @pytest.mark.integration
@@ -262,7 +235,7 @@ class TestBulkOperations:
         ]
         count = client_with_table.update_many(updates)
         assert count == 2
-        result = client_with_table.get_by_id(rowids[0])
+        result = client_with_table.get(rowids[0])
         assert result[1] == "updated 1"
 
     def test_update_many_empty(self, client_with_table):

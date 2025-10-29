@@ -81,7 +81,7 @@ def main():
 
         print("Top 3 results:")
         for i, (rowid, text, distance) in enumerate(results, 1):
-            record = client.get_by_id(rowid)
+            record = client.get(rowid)
             if record:
                 _, _, meta, _ = record
                 print(f"  {i}. [{meta['category']}] {text[:60]}...")
@@ -89,13 +89,14 @@ def main():
                     f"     Distance: {distance:.4f}, Difficulty: {meta['difficulty']}\n"
                 )
 
-        # Filter by category
-        print("All AI-related documents:")
-        ai_docs = client.get_by_metadata(
-            {"category": "ai", "language": "general", "difficulty": "intermediate"}
-        )
-        for rowid, text, meta, _ in ai_docs:
-            print(f"  • {text[:60]}...")
+        # Filter by category using get_all
+        print("All AI-related documents (intermediate):")
+        for rowid, text, meta, _ in client.get_all():
+            if (
+                meta.get("category") == "ai"
+                and meta.get("difficulty") == "intermediate"
+            ):
+                print(f"  • {text[:60]}...")
 
         # Update document
         if rowids:
@@ -114,9 +115,12 @@ def main():
         print("\nKnowledge base statistics:")
         print(f"  Total documents: {client.count()}")
 
-        # List recent documents
-        recent = client.list_results(limit=3, offset=0, order="desc")
-        print(f"  Most recent: {len(recent)} documents")
+        # List first 3 documents
+        print("  First 3 documents:")
+        for i, (rowid, text, _, _) in enumerate(client.get_all()):
+            if i >= 3:
+                break
+            print(f"    [{rowid}] {text[:50]}...")
 
 
 if __name__ == "__main__":

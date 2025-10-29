@@ -64,15 +64,10 @@ class TestInputValidationSecurity:
         with pytest.raises(ValidationError, match="positive integer"):
             client_with_table.similarity_search(embedding=[0.1, 0.2, 0.3], top_k=0)
 
-    def test_negative_limit(self, client_with_table):
-        """Test that negative limit is rejected."""
+    def test_negative_batch_size(self, client_with_table):
+        """Test that negative batch_size is rejected."""
         with pytest.raises(ValidationError, match="positive integer"):
-            client_with_table.list_results(limit=-1)
-
-    def test_negative_offset(self, client_with_table):
-        """Test that negative offset is rejected."""
-        with pytest.raises(ValidationError, match="non-negative integer"):
-            client_with_table.list_results(offset=-1)
+            list(client_with_table.get_all(batch_size=-1))
 
 
 @pytest.mark.integration

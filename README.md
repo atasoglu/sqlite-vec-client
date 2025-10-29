@@ -219,8 +219,9 @@ Edit [benchmarks/config.yaml](benchmarks/config.yaml) to customize:
 - [TESTING.md](TESTING.md) - Testing documentation
 - [Examples](examples/) - Usage examples
   - [basic_usage.py](examples/basic_usage.py) - Basic CRUD operations
-  - [logging_example.py](examples/logging_example.py) - Logging configuration
+  - [transaction_example.py](examples/transaction_example.py) - Transaction management with all CRUD operations
   - [batch_operations.py](examples/batch_operations.py) - Bulk operations
+  - [logging_example.py](examples/logging_example.py) - Logging configuration
 - [Benchmarks](benchmarks/) - Performance benchmarks
 
 ## Contributing

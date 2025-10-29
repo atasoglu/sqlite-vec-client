@@ -43,7 +43,7 @@ def main():
         print(f"  [{rowid}] {text[:50]}... (distance: {distance:.4f})")
 
     # Get record by ID
-    record = client.get_by_id(rowids[0])
+    record = client.get(rowids[0])
     if record:
         rowid, text, metadata, embedding = record
         print(f"\nRecord {rowid}: {text}")

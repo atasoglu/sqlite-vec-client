@@ -2,8 +2,7 @@
 
 Demonstrates:
 - Adding records with metadata
-- Filtering by metadata
-- Filtering by text
+- Querying records with get_all
 - Updating metadata
 """
 
@@ -36,17 +35,17 @@ def main():
     rowids = client.add(texts=texts, embeddings=embeddings, metadata=metadata)
     print(f"Added {len(rowids)} articles")
 
-    # Filter by exact metadata match
-    alice_articles = client.get_by_metadata(
-        {"category": "programming", "author": "Alice", "year": 2023}
-    )
-    print(f"\nAlice's programming articles: {len(alice_articles)}")
-    for rowid, text, meta, _ in alice_articles:
-        print(f"  [{rowid}] {text} - {meta}")
+    # Query all articles and filter by author
+    print("\nAlice's articles:")
+    for rowid, text, meta, _ in client.get_all():
+        if meta.get("author") == "Alice":
+            print(f"  [{rowid}] {text} - {meta}")
 
-    # Filter by text
-    python_articles = client.get_by_text("Python for data science")
-    print(f"\nPython articles: {len(python_articles)}")
+    # Query all articles and filter by text
+    print("\nPython-related articles:")
+    for rowid, text, meta, _ in client.get_all():
+        if "Python" in text:
+            print(f"  [{rowid}] {text}")
 
     # Update metadata
     if rowids:
@@ -59,7 +58,7 @@ def main():
                 "updated": True,
             },
         )
-        updated = client.get_by_id(rowids[0])
+        updated = client.get(rowids[0])
         if updated:
             print(f"\nUpdated metadata: {updated[2]}")
 
