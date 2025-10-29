@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from .exceptions import DimensionMismatchError, TableNameError, ValidationError
 
 _TABLE_NAME_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+_JSON_PATH_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_.]*$")
 
 
 def validate_table_name(table: str) -> None:
@@ -119,3 +121,28 @@ def validate_embedding_dimension(embedding: list[float], expected_dim: int) -> N
             f"Embedding dimension {len(embedding)} does not match "
             f"expected {expected_dim}"
         )
+
+
+def validate_metadata_filters(filters: dict[str, Any]) -> None:
+    """Validate metadata filters dictionary.
+
+    Args:
+        filters: Dictionary of metadata key-value pairs to filter by
+
+    Raises:
+        ValidationError: If filters is invalid
+    """
+    if not isinstance(filters, dict):
+        raise ValidationError("Filters must be a dictionary")
+    if not filters:
+        raise ValidationError("Filters cannot be empty")
+    for key in filters.keys():
+        if not isinstance(key, str):
+            raise ValidationError(
+                f"Filter key must be string, got {type(key).__name__}"
+            )
+        if not _JSON_PATH_PATTERN.match(key):
+            raise ValidationError(
+                f"Invalid filter key '{key}'. Must contain only alphanumeric "
+                "characters, underscores, and dots for nested paths"
+            )

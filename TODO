@@ -69,8 +69,8 @@
 - [x] Benchmark tests
 
 ### New Features
-- [ ] Partial search on JSON metadata (JSON_EXTRACT)
-- [ ] Metadata field filtering (key-value based)
+- [x] Partial search on JSON metadata (JSON_EXTRACT)
+- [x] Metadata field filtering (key-value based)
 - [x] Transaction context manager
 - [ ] Async/await support (aiosqlite)
 - [ ] Export/import functions (JSON, CSV)

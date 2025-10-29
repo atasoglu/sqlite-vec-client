@@ -2,7 +2,9 @@
 
 Demonstrates:
 - Adding records with metadata
-- Querying records with get_all
+- Filtering by metadata fields
+- Counting records by metadata
+- Combined similarity search with metadata filtering
 - Updating metadata
 """
 
@@ -35,19 +37,32 @@ def main():
     rowids = client.add(texts=texts, embeddings=embeddings, metadata=metadata)
     print(f"Added {len(rowids)} articles")
 
-    # Query all articles and filter by author
-    print("\nAlice's articles:")
-    for rowid, text, meta, _ in client.get_all():
-        if meta.get("author") == "Alice":
-            print(f"  [{rowid}] {text} - {meta}")
+    # Filter by metadata - efficient JSON_EXTRACT queries
+    print("\nAlice's articles (using filter_by_metadata):")
+    results = client.filter_by_metadata({"author": "Alice"})
+    for rowid, text, meta, _ in results:
+        print(f"  [{rowid}] {text} - {meta}")
 
-    # Query all articles and filter by text
-    print("\nPython-related articles:")
-    for rowid, text, meta, _ in client.get_all():
-        if "Python" in text:
-            print(f"  [{rowid}] {text}")
+    # Filter by multiple fields
+    print("\nArticles from 2024:")
+    results = client.filter_by_metadata({"year": 2024})
+    for rowid, text, meta, _ in results:
+        print(f"  [{rowid}] {text} - Year: {meta['year']}")
 
-    # Update metadata
+    # Count records by metadata
+    count = client.count_by_metadata({"author": "Alice"})
+    print(f"\nTotal articles by Alice: {count}")
+
+    # Combined similarity search with metadata filtering
+    print("\nSimilar to 'Python' in category 'programming':")
+    query_emb = [0.1] * 128
+    hits = client.similarity_search_with_filter(
+        embedding=query_emb, filters={"category": "programming"}, top_k=5
+    )
+    for rowid, text, distance in hits:
+        print(f"  [{rowid}] {text} (distance: {distance:.4f})")
+
+    # Update metadata and verify with filter
     if rowids:
         client.update(
             rowids[0],
@@ -58,9 +73,16 @@ def main():
                 "updated": True,
             },
         )
-        updated = client.get(rowids[0])
-        if updated:
-            print(f"\nUpdated metadata: {updated[2]}")
+        # Find updated records
+        updated_records = client.filter_by_metadata({"updated": True})
+        print(f"\nUpdated records: {len(updated_records)}")
+        if updated_records:
+            print(f"  Metadata: {updated_records[0][2]}")
+
+    # Pagination example
+    print("\nPagination example (limit=2):")
+    page1 = client.filter_by_metadata({"year": 2024}, limit=2, offset=0)
+    print(f"  Page 1: {len(page1)} results")
 
     client.close()
 

@@ -20,11 +20,13 @@ from .exceptions import ConnectionError as VecConnectionError
 from .exceptions import TableNotFoundError
 from .logger import get_logger
 from .types import Embeddings, Metadata, Result, Rowids, SimilaritySearchResult, Text
-from .utils import deserialize_f32, serialize_f32
+from .utils import build_metadata_where_clause, deserialize_f32, serialize_f32
 from .validation import (
     validate_dimension,
     validate_embeddings_match,
     validate_limit,
+    validate_metadata_filters,
+    validate_offset,
     validate_table_name,
     validate_top_k,
 )
@@ -509,6 +511,129 @@ class SQLiteVecClient:
 
         logger.info(f"Deleted {deleted_count} records from table '{self.table}'")
         return deleted_count
+
+    def filter_by_metadata(
+        self, filters: dict[str, Any], limit: int = 100, offset: int = 0
+    ) -> list[Result]:
+        """Filter records by metadata key-value pairs.
+
+        Args:
+            filters: Dictionary of metadata key-value pairs to match
+            limit: Maximum number of results to return
+            offset: Number of results to skip
+
+        Returns:
+            List of matching (rowid, text, metadata, embedding) tuples
+
+        Raises:
+            ValidationError: If filters or pagination params are invalid
+        """
+        validate_metadata_filters(filters)
+        validate_limit(limit)
+        validate_offset(offset)
+        logger.debug(f"Filtering by metadata: {filters}")
+
+        where_clause, params = build_metadata_where_clause(filters)
+        cursor = self.connection.cursor()
+        cursor.execute(
+            f"""
+            SELECT rowid, text, metadata, text_embedding
+            FROM {self.table}
+            WHERE {where_clause}
+            ORDER BY rowid ASC
+            LIMIT ? OFFSET ?
+            """,
+            params + [limit, offset],
+        )
+        rows = cursor.fetchall()
+        logger.debug(f"Found {len(rows)} records matching filters")
+        return self.rows_to_results(rows)
+
+    def count_by_metadata(self, filters: dict[str, Any]) -> int:
+        """Count records matching metadata filters.
+
+        Args:
+            filters: Dictionary of metadata key-value pairs to match
+
+        Returns:
+            Number of matching records
+
+        Raises:
+            ValidationError: If filters are invalid
+        """
+        validate_metadata_filters(filters)
+        where_clause, params = build_metadata_where_clause(filters)
+        cursor = self.connection.cursor()
+        cursor.execute(
+            f"SELECT COUNT(1) FROM {self.table} WHERE {where_clause}", params
+        )
+        result = cursor.fetchone()
+        return int(result[0]) if result else 0
+
+    def similarity_search_with_filter(
+        self,
+        embedding: Embeddings,
+        filters: dict[str, Any],
+        top_k: int = 5,
+    ) -> list[SimilaritySearchResult]:
+        """Perform similarity search with metadata filtering.
+
+        Note: This performs similarity search first, then filters results.
+        The top_k parameter applies BEFORE filtering, so fewer than top_k
+        results may be returned if filters are restrictive.
+
+        Args:
+            embedding: Query embedding vector
+            filters: Dictionary of metadata key-value pairs to match
+            top_k: Number of candidates to retrieve before filtering
+
+        Returns:
+            List of (rowid, text, distance) tuples matching filters
+
+        Raises:
+            ValidationError: If parameters are invalid
+            TableNotFoundError: If table doesn't exist
+        """
+        validate_top_k(top_k)
+        validate_metadata_filters(filters)
+        logger.debug(f"Similarity search with filters: {filters}, top_k={top_k}")
+
+        where_clause, params = build_metadata_where_clause(filters)
+        try:
+            cursor = self.connection.cursor()
+            # Use subquery to get similarity results first, then filter
+            cursor.execute(
+                f"""
+                SELECT
+                    sim.rowid,
+                    sim.text,
+                    sim.distance
+                FROM (
+                    SELECT
+                        e.rowid AS rowid,
+                        e.text AS text,
+                        e.metadata AS metadata,
+                        v.distance AS distance
+                    FROM {self.table} AS e
+                    INNER JOIN {self.table}_vec AS v on v.rowid = e.rowid
+                    WHERE v.text_embedding MATCH ? AND k = ?
+                    ORDER BY v.distance
+                ) AS sim
+                WHERE {where_clause}
+                """,
+                [serialize_f32(embedding), top_k] + params,
+            )
+            results = cursor.fetchall()
+            logger.debug(f"Filtered similarity search returned {len(results)} results")
+            return [(row["rowid"], row["text"], row["distance"]) for row in results]
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e).lower():
+                logger.error(f"Table '{self.table}' not found during similarity search")
+                raise TableNotFoundError(
+                    f"Table '{self.table}' or '{self.table}_vec' does not exist. "
+                    "Call create_table() first."
+                ) from e
+            raise
 
     @contextmanager
     def transaction(self) -> Generator[None, None, None]:

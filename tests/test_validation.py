@@ -12,6 +12,7 @@ from sqlite_vec_client.validation import (
     validate_embedding_dimension,
     validate_embeddings_match,
     validate_limit,
+    validate_metadata_filters,
     validate_offset,
     validate_table_name,
     validate_top_k,
@@ -205,3 +206,36 @@ class TestValidateEmbeddingDimension:
         embedding = [1.0, 2.0]
         with pytest.raises(DimensionMismatchError, match="does not match"):
             validate_embedding_dimension(embedding, 3)
+
+
+@pytest.mark.unit
+class TestValidateMetadataFilters:
+    """Tests for validate_metadata_filters function."""
+
+    def test_valid_filters(self):
+        """Test that valid filters pass validation."""
+        validate_metadata_filters({"key": "value"})
+        validate_metadata_filters({"category": "python", "year": 2024})
+        validate_metadata_filters({"author.name": "Alice"})
+
+    def test_empty_filters(self):
+        """Test that empty filters raise error."""
+        with pytest.raises(ValidationError, match="cannot be empty"):
+            validate_metadata_filters({})
+
+    def test_non_dict_filters(self):
+        """Test that non-dict filters raise error."""
+        with pytest.raises(ValidationError, match="must be a dictionary"):
+            validate_metadata_filters(["key", "value"])
+
+    def test_invalid_key_characters(self):
+        """Test that invalid key characters raise error."""
+        with pytest.raises(ValidationError, match="Invalid filter key"):
+            validate_metadata_filters({"key-name": "value"})
+        with pytest.raises(ValidationError, match="Invalid filter key"):
+            validate_metadata_filters({"key name": "value"})
+
+    def test_non_string_keys(self):
+        """Test that non-string keys raise error."""
+        with pytest.raises(ValidationError, match="must be string"):
+            validate_metadata_filters({123: "value"})

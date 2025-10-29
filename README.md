@@ -66,6 +66,40 @@ rows = client.get_many(rowids)
 client.close()
 ```
 
+## Metadata Filtering
+
+Efficiently filter records by metadata fields using SQLite's JSON functions:
+
+```python
+# Filter by single field
+results = client.filter_by_metadata({"category": "python"})
+
+# Filter by multiple fields
+results = client.filter_by_metadata({"category": "python", "year": 2024})
+
+# Nested JSON paths
+results = client.filter_by_metadata({"author.name": "Alice"})
+
+# Count matching records
+count = client.count_by_metadata({"category": "python"})
+
+# Combined similarity search + metadata filtering
+hits = client.similarity_search_with_filter(
+    embedding=query_vector,
+    filters={"category": "python"},
+    top_k=5
+)
+
+# Pagination
+results = client.filter_by_metadata(
+    {"category": "python"},
+    limit=10,
+    offset=0
+)
+```
+
+See [examples/metadata_filtering.py](examples/metadata_filtering.py) and [examples/advanced_metadata_queries.py](examples/advanced_metadata_queries.py) for more examples.
+
 ## Bulk Operations
 
 The client provides optimized methods for bulk operations:
@@ -219,6 +253,8 @@ Edit [benchmarks/config.yaml](benchmarks/config.yaml) to customize:
 - [TESTING.md](TESTING.md) - Testing documentation
 - [Examples](examples/) - Usage examples
   - [basic_usage.py](examples/basic_usage.py) - Basic CRUD operations
+  - [metadata_filtering.py](examples/metadata_filtering.py) - Metadata filtering and queries
+  - [advanced_metadata_queries.py](examples/advanced_metadata_queries.py) - Advanced metadata filtering with nested paths
   - [transaction_example.py](examples/transaction_example.py) - Transaction management with all CRUD operations
   - [batch_operations.py](examples/batch_operations.py) - Bulk operations
   - [logging_example.py](examples/logging_example.py) - Logging configuration

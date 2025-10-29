@@ -149,3 +149,30 @@ class TestConnectionSecurity:
             client.create_table(dim=3)
             assert client.connection is not None
         # Connection should be closed after context
+
+
+@pytest.mark.unit
+class TestMetadataFilterSecurity:
+    """Tests for metadata filter security."""
+
+    def test_filter_key_sql_injection(self, client_with_table):
+        """Test that SQL injection in filter keys is blocked."""
+        with pytest.raises(ValidationError, match="Invalid filter key"):
+            client_with_table.filter_by_metadata({"key'; DROP TABLE--": "value"})
+
+    def test_filter_key_special_chars(self, client_with_table):
+        """Test that special characters in filter keys are blocked."""
+        with pytest.raises(ValidationError, match="Invalid filter key"):
+            client_with_table.filter_by_metadata({"key-name": "value"})
+        with pytest.raises(ValidationError, match="Invalid filter key"):
+            client_with_table.filter_by_metadata({"key name": "value"})
+
+    def test_empty_filters(self, client_with_table):
+        """Test that empty filters are rejected."""
+        with pytest.raises(ValidationError, match="cannot be empty"):
+            client_with_table.filter_by_metadata({})
+
+    def test_non_dict_filters(self, client_with_table):
+        """Test that non-dict filters are rejected."""
+        with pytest.raises(ValidationError, match="must be a dictionary"):
+            client_with_table.filter_by_metadata(["key", "value"])

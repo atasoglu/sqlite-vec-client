@@ -277,3 +277,113 @@ class TestBulkOperations:
         except ValueError:
             pass
         assert client_with_table.count() == 0
+
+
+@pytest.mark.integration
+class TestMetadataFiltering:
+    """Tests for metadata filtering methods."""
+
+    def test_filter_by_metadata_single_field(
+        self, client_with_table, sample_texts, sample_embeddings
+    ):
+        """Test filtering by single metadata field."""
+        metadata = [
+            {"category": "python"},
+            {"category": "java"},
+            {"category": "python"},
+        ]
+        client_with_table.add(
+            texts=sample_texts, embeddings=sample_embeddings, metadata=metadata
+        )
+        results = client_with_table.filter_by_metadata({"category": "python"})
+        assert len(results) == 2
+        assert all(r[2]["category"] == "python" for r in results)
+
+    def test_filter_by_metadata_multiple_fields(
+        self, client_with_table, sample_texts, sample_embeddings
+    ):
+        """Test filtering by multiple metadata fields."""
+        metadata = [
+            {"category": "python", "year": 2024},
+            {"category": "python", "year": 2023},
+            {"category": "java", "year": 2024},
+        ]
+        client_with_table.add(
+            texts=sample_texts, embeddings=sample_embeddings, metadata=metadata
+        )
+        results = client_with_table.filter_by_metadata(
+            {"category": "python", "year": 2024}
+        )
+        assert len(results) == 1
+        assert results[0][2]["category"] == "python"
+        assert results[0][2]["year"] == 2024
+
+    def test_filter_by_metadata_no_matches(self, client_with_table):
+        """Test filtering with no matches returns empty list."""
+        results = client_with_table.filter_by_metadata({"category": "nonexistent"})
+        assert results == []
+
+    def test_filter_by_metadata_with_pagination(
+        self, client_with_table, sample_embeddings
+    ):
+        """Test filtering with pagination."""
+        texts = [f"text {i}" for i in range(10)]
+        embeddings = [sample_embeddings[0]] * 10
+        metadata = [{"category": "test"} for _ in range(10)]
+        client_with_table.add(texts=texts, embeddings=embeddings, metadata=metadata)
+        results = client_with_table.filter_by_metadata(
+            {"category": "test"}, limit=5, offset=0
+        )
+        assert len(results) == 5
+        results_page2 = client_with_table.filter_by_metadata(
+            {"category": "test"}, limit=5, offset=5
+        )
+        assert len(results_page2) == 5
+
+    def test_count_by_metadata(
+        self, client_with_table, sample_texts, sample_embeddings
+    ):
+        """Test counting records by metadata."""
+        metadata = [
+            {"category": "python"},
+            {"category": "java"},
+            {"category": "python"},
+        ]
+        client_with_table.add(
+            texts=sample_texts, embeddings=sample_embeddings, metadata=metadata
+        )
+        count = client_with_table.count_by_metadata({"category": "python"})
+        assert count == 2
+
+    def test_similarity_search_with_filter(
+        self, client_with_table, sample_texts, sample_embeddings
+    ):
+        """Test similarity search with metadata filtering."""
+        metadata = [
+            {"category": "python"},
+            {"category": "java"},
+            {"category": "python"},
+        ]
+        client_with_table.add(
+            texts=sample_texts, embeddings=sample_embeddings, metadata=metadata
+        )
+        results = client_with_table.similarity_search_with_filter(
+            embedding=[0.1, 0.2, 0.3], filters={"category": "python"}, top_k=5
+        )
+        assert len(results) <= 2
+        for rowid, _, _ in results:
+            record = client_with_table.get(rowid)
+            assert record[2]["category"] == "python"
+
+    def test_similarity_search_with_filter_no_matches(
+        self, client_with_table, sample_texts, sample_embeddings
+    ):
+        """Test similarity search with filter that matches nothing."""
+        metadata = [{"category": "python"}] * 3
+        client_with_table.add(
+            texts=sample_texts, embeddings=sample_embeddings, metadata=metadata
+        )
+        results = client_with_table.similarity_search_with_filter(
+            embedding=[0.1, 0.2, 0.3], filters={"category": "java"}, top_k=5
+        )
+        assert results == []

@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2025-02-01
+
+### Added
+- **Metadata filtering**: New `filter_by_metadata()` method for efficient key-value filtering using SQLite's JSON_EXTRACT
+- **Metadata counting**: New `count_by_metadata()` method to count records matching metadata filters
+- **Combined search**: New `similarity_search_with_filter()` method combining vector similarity with metadata filtering
+- Support for nested JSON paths in metadata filters (e.g., `{"author.name": "Alice"}`)
+- Pagination support in `filter_by_metadata()` with `limit` and `offset` parameters
+- New validation function `validate_metadata_filters()` for secure filter validation
+- New utility function `build_metadata_where_clause()` for safe SQL generation
+- Comprehensive test coverage for metadata filtering (unit, integration, and security tests)
+- New example `advanced_metadata_queries.py` demonstrating nested paths and complex queries
+- Updated `metadata_filtering.py` example with new filtering methods
+
+### Security
+- SQL injection prevention in metadata filter keys
+- Validation of JSON paths to prevent malicious queries
+- Parameterized queries for all metadata filtering operations
+
+### Documentation
+- Added "Metadata Filtering" section to README with examples
+- Updated examples list in README
+- Added comprehensive docstrings for new methods
+
 ## [2.1.1] - 2025-01-31
 
 ### Changed
@@ -166,6 +190,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **2.2.0** - Added metadata filtering with JSON_EXTRACT support
+- **2.1.1** - Moved table name validation to create_table()
+- **2.1.0** - Added connection pooling support
 - **2.0.0** - Major refactor: simplified API, removed niche methods, cleaner naming
 - **1.2.0** - Added benchmarks module
 - **1.0.0** - First stable release
