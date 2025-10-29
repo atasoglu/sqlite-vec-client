@@ -24,20 +24,26 @@ class TestSQLInjectionPrevention:
             "table;DELETE FROM data",
         ]
         for name in malicious_names:
+            client = SQLiteVecClient(table=name, db_path=temp_db)
             with pytest.raises(TableNameError):
-                SQLiteVecClient(table=name, db_path=temp_db)
+                client.create_table(dim=3)
+            client.close()
 
     def test_table_name_with_special_chars(self, temp_db):
         """Test that special characters in table names are rejected."""
         invalid_names = ["table-name", "table.name", "table name", "table@name"]
         for name in invalid_names:
+            client = SQLiteVecClient(table=name, db_path=temp_db)
             with pytest.raises(TableNameError):
-                SQLiteVecClient(table=name, db_path=temp_db)
+                client.create_table(dim=3)
+            client.close()
 
     def test_table_name_starting_with_number(self, temp_db):
         """Test that table names starting with numbers are rejected."""
+        client = SQLiteVecClient(table="123table", db_path=temp_db)
         with pytest.raises(TableNameError):
-            SQLiteVecClient(table="123table", db_path=temp_db)
+            client.create_table(dim=3)
+        client.close()
 
 
 @pytest.mark.unit
@@ -105,8 +111,10 @@ class TestTableNameValidation:
 
     def test_empty_table_name(self, temp_db):
         """Test that empty table name is rejected."""
+        client = SQLiteVecClient(table="", db_path=temp_db)
         with pytest.raises(TableNameError, match="cannot be empty"):
-            SQLiteVecClient(table="", db_path=temp_db)
+            client.create_table(dim=3)
+        client.close()
 
     def test_valid_table_names(self, temp_db):
         """Test that valid table names are accepted."""

@@ -14,16 +14,11 @@ from sqlite_vec_client import (
 class TestClientInitialization:
     """Tests for client initialization."""
 
-    def test_init_with_valid_table_name(self, temp_db):
-        """Test initialization with valid table name."""
+    def test_init_with_table_name(self, temp_db):
+        """Test initialization with table name."""
         client = SQLiteVecClient(table="valid_table", db_path=temp_db)
         assert client.table == "valid_table"
         client.close()
-
-    def test_init_with_invalid_table_name(self, temp_db):
-        """Test initialization with invalid table name raises error."""
-        with pytest.raises(TableNameError):
-            SQLiteVecClient(table="invalid-table", db_path=temp_db)
 
 
 @pytest.mark.integration
@@ -44,6 +39,13 @@ class TestCreateTable:
         """Test that invalid dimension raises error."""
         with pytest.raises(ValidationError):
             client.create_table(dim=0)
+
+    def test_create_table_validates_table_name(self, temp_db):
+        """Test that create_table validates table name."""
+        client = SQLiteVecClient(table="invalid-table", db_path=temp_db)
+        with pytest.raises(TableNameError):
+            client.create_table(dim=3)
+        client.close()
 
 
 @pytest.mark.integration

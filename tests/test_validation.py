@@ -45,6 +45,43 @@ class TestValidateTableName:
         with pytest.raises(TableNameError):
             validate_table_name("123table")
 
+    def test_sql_injection_attempts(self):
+        """Test that SQL injection attempts are rejected."""
+        injection_attempts = [
+            "table'; DROP TABLE users--",
+            "table OR 1=1",
+            "table; DELETE FROM data",
+            "table/*comment*/",
+        ]
+        for name in injection_attempts:
+            with pytest.raises(TableNameError):
+                validate_table_name(name)
+
+
+@pytest.mark.unit
+class TestValidateTableNameInCreateTable:
+    """Tests for table name validation in create_table method."""
+
+    def test_create_table_with_invalid_name(self, tmp_path):
+        """Test that create_table validates table name."""
+        from sqlite_vec_client import SQLiteVecClient
+
+        db_path = str(tmp_path / "test.db")
+        client = SQLiteVecClient(table="invalid-table", db_path=db_path)
+        with pytest.raises(TableNameError):
+            client.create_table(dim=3)
+        client.close()
+
+    def test_create_table_with_valid_name(self, tmp_path):
+        """Test that create_table accepts valid table name."""
+        from sqlite_vec_client import SQLiteVecClient
+
+        db_path = str(tmp_path / "test.db")
+        client = SQLiteVecClient(table="valid_table", db_path=db_path)
+        client.create_table(dim=3)
+        assert client.count() == 0
+        client.close()
+
 
 @pytest.mark.unit
 class TestValidateDimension:

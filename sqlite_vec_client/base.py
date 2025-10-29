@@ -105,11 +105,9 @@ class SQLiteVecClient:
             pool: Optional connection pool for connection reuse
 
         Raises:
-            TableNameError: If table name is invalid
             VecConnectionError: If connection fails
             ValueError: If both db_path and pool are None
         """
-        validate_table_name(table)
         self.table = table
         self._in_transaction = False
         self._pool = pool
@@ -148,8 +146,10 @@ class SQLiteVecClient:
             distance: Distance metric for similarity search
 
         Raises:
+            TableNameError: If table name is invalid
             ValidationError: If dimension is invalid
         """
+        validate_table_name(self.table)
         validate_dimension(dim)
         logger.info(
             f"Creating table '{self.table}' with dim={dim}, distance={distance}"
