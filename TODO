@@ -62,7 +62,7 @@
 ## 🔵 Low Priority (New Features)
 
 ### Performance
-- [ ] Connection pooling support
+- [x] Connection pooling support
 - [x] Batch update operation
 - [x] Lazy loading option
 - [ ] Index strategy documentation

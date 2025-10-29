@@ -13,9 +13,11 @@ from .exceptions import (
     VecClientError,
 )
 from .logger import get_logger
+from .pool import ConnectionPool
 
 __all__ = [
     "SQLiteVecClient",
+    "ConnectionPool",
     "VecClientError",
     "ValidationError",
     "TableNameError",
