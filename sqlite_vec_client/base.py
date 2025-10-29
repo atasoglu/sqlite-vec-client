@@ -25,7 +25,6 @@ from .validation import (
     validate_dimension,
     validate_embeddings_match,
     validate_limit,
-    validate_offset,
     validate_table_name,
     validate_top_k,
 )
@@ -246,6 +245,13 @@ class SQLiteVecClient:
                 ) from e
             raise
 
+    def count(self) -> int:
+        """Return the total number of rows in the base table."""
+        cursor = self.connection.cursor()
+        cursor.execute(f"SELECT COUNT(1) FROM {self.table}")
+        result = cursor.fetchone()
+        return int(result[0]) if result else 0
+
     def add(
         self,
         texts: list[Text],
@@ -306,7 +312,7 @@ class SQLiteVecClient:
                 ) from e
             raise
 
-    def get_by_id(self, rowid: int) -> Result | None:
+    def get(self, rowid: int) -> Result | None:
         """Get a single record by rowid; return `None` if not found."""
         cursor = self.connection.cursor()
         cursor.execute(
@@ -335,73 +341,37 @@ class SQLiteVecClient:
         rows = cursor.fetchall()
         return self.rows_to_results(rows)
 
-    def get_by_text(self, text: str) -> list[Result]:
-        """Get all records with exact `text`, ordered by rowid ascending."""
-        cursor = self.connection.cursor()
-        cursor.execute(
-            f"""
-            SELECT rowid, text, metadata, text_embedding FROM {self.table}
-            WHERE text = ?
-            ORDER BY rowid ASC
-            """,
-            [text],
-        )
-        rows = cursor.fetchall()
-        return self.rows_to_results(rows)
-
-    def get_by_metadata(self, metadata: dict[str, Any]) -> list[Result]:
-        """Get all records whose metadata exactly equals the given dict."""
-        cursor = self.connection.cursor()
-        cursor.execute(
-            f"""
-            SELECT rowid, text, metadata, text_embedding FROM {self.table}
-            WHERE metadata = ?
-            ORDER BY rowid ASC
-            """,
-            [json.dumps(metadata)],
-        )
-        rows = cursor.fetchall()
-        return self.rows_to_results(rows)
-
-    def list_results(
-        self,
-        limit: int = 50,
-        offset: int = 0,
-        order: Literal["asc", "desc"] = "asc",
-    ) -> list[Result]:
-        """List records with pagination and order by rowid.
+    def get_all(self, batch_size: int = 100) -> Generator[Result, None, None]:
+        """Yield all records in batches for memory-efficient iteration.
 
         Args:
-            limit: Maximum number of results (must be positive)
-            offset: Number of results to skip (must be non-negative)
-            order: Sort order ('asc' or 'desc')
+            batch_size: Number of records to fetch per batch
 
-        Returns:
-            List of (rowid, text, metadata, embedding) tuples
-
-        Raises:
-            ValidationError: If limit or offset is invalid
+        Yields:
+            Individual (rowid, text, metadata, embedding) tuples
         """
-        validate_limit(limit)
-        validate_offset(offset)
+        validate_limit(batch_size)
+        logger.debug(f"Fetching all records with batch_size={batch_size}")
+        last_rowid = 0
         cursor = self.connection.cursor()
-        cursor.execute(
-            f"""
-            SELECT rowid, text, metadata, text_embedding FROM {self.table}
-            ORDER BY rowid {order.upper()}
-            LIMIT ? OFFSET ?
-            """,
-            [limit, offset],
-        )
-        rows = cursor.fetchall()
-        return self.rows_to_results(rows)
 
-    def count(self) -> int:
-        """Return the total number of rows in the base table."""
-        cursor = self.connection.cursor()
-        cursor.execute(f"SELECT COUNT(1) as c FROM {self.table}")
-        row = cursor.fetchone()
-        return int(row["c"]) if row is not None else 0
+        while True:
+            cursor.execute(
+                f"""
+                SELECT rowid, text, metadata, text_embedding FROM {self.table}
+                WHERE rowid > ?
+                ORDER BY rowid ASC
+                LIMIT ?
+                """,
+                [last_rowid, batch_size],
+            )
+            rows = cursor.fetchall()
+            if not rows:
+                break
+
+            results = self.rows_to_results(rows)
+            yield from results
+            last_rowid = results[-1][0]  # Get last rowid from batch
 
     def update(
         self,
@@ -439,7 +409,54 @@ class SQLiteVecClient:
             logger.debug(f"Successfully updated record with rowid={rowid}")
         return updated
 
-    def delete_by_id(self, rowid: int) -> bool:
+    def update_many(
+        self,
+        updates: list[tuple[int, str | None, Metadata | None, Embeddings | None]],
+    ) -> int:
+        """Update multiple records in a single transaction.
+
+        Args:
+            updates: List of (rowid, text, metadata, embedding) tuples.
+                     Any field except rowid can be None to skip updating.
+
+        Returns:
+            Number of rows updated
+        """
+        if not updates:
+            return 0
+        logger.debug(f"Updating {len(updates)} records")
+
+        cur = self.connection.cursor()
+        updated_count = 0
+
+        for rowid, text, metadata, embedding in updates:
+            sets: list[str] = []
+            params: list[Any] = []
+            if text is not None:
+                sets.append("text = ?")
+                params.append(text)
+            if metadata is not None:
+                sets.append("metadata = ?")
+                params.append(json.dumps(metadata))
+            if embedding is not None:
+                sets.append("text_embedding = ?")
+                params.append(serialize_f32(embedding))
+
+            if sets:
+                params.append(rowid)
+                cur.execute(
+                    f"UPDATE {self.table} SET {', '.join(sets)} WHERE rowid = ?",
+                    params,
+                )
+                updated_count += cur.rowcount
+
+        if not self._in_transaction:
+            self.connection.commit()
+
+        logger.info(f"Updated {updated_count} records in table '{self.table}'")
+        return updated_count
+
+    def delete(self, rowid: int) -> bool:
         """Delete a single record by rowid; return True if a row was removed."""
         logger.debug(f"Deleting record with rowid={rowid}")
         cur = self.connection.cursor()
@@ -477,144 +494,6 @@ class SQLiteVecClient:
 
         logger.info(f"Deleted {deleted_count} records from table '{self.table}'")
         return deleted_count
-
-    def update_many(
-        self,
-        updates: list[tuple[int, str | None, Metadata | None, Embeddings | None]],
-    ) -> int:
-        """Update multiple records in a single transaction.
-
-        Args:
-            updates: List of (rowid, text, metadata, embedding) tuples.
-                     Any field except rowid can be None to skip updating.
-
-        Returns:
-            Number of rows updated
-        """
-        if not updates:
-            return 0
-        logger.debug(f"Updating {len(updates)} records")
-
-        # Group updates by which fields are being updated
-        text_updates = []
-        metadata_updates = []
-        embedding_updates = []
-        full_updates = []
-
-        mixed_updates = []
-
-        for rowid, text, metadata, embedding in updates:
-            has_text = text is not None
-            has_metadata = metadata is not None
-            has_embedding = embedding is not None
-
-            if has_text and has_metadata and has_embedding:
-                if text is not None and metadata is not None and embedding is not None:
-                    full_updates.append(
-                        (text, json.dumps(metadata), serialize_f32(embedding), rowid)
-                    )
-            elif has_text and not has_metadata and not has_embedding:
-                text_updates.append((text, rowid))
-            elif has_metadata and not has_text and not has_embedding:
-                metadata_updates.append((json.dumps(metadata), rowid))
-            elif has_embedding and not has_text and not has_metadata:
-                if embedding is not None:
-                    embedding_updates.append((serialize_f32(embedding), rowid))
-            else:
-                # Mixed updates - store for individual execution
-                mixed_updates.append((rowid, text, metadata, embedding))
-
-        cur = self.connection.cursor()
-        updated_count = 0
-
-        # Batch execute grouped updates
-        if full_updates:
-            cur.executemany(
-                f"""
-                UPDATE {self.table}
-                SET text = ?, metadata = ?, text_embedding = ? WHERE rowid = ?
-                """,
-                full_updates,
-            )
-            updated_count += cur.rowcount
-
-        if text_updates:
-            cur.executemany(
-                f"UPDATE {self.table} SET text = ? WHERE rowid = ?", text_updates
-            )
-            updated_count += cur.rowcount
-
-        if metadata_updates:
-            cur.executemany(
-                f"UPDATE {self.table} SET metadata = ? WHERE rowid = ?",
-                metadata_updates,
-            )
-            updated_count += cur.rowcount
-
-        if embedding_updates:
-            cur.executemany(
-                f"UPDATE {self.table} SET text_embedding = ? WHERE rowid = ?",
-                embedding_updates,
-            )
-            updated_count += cur.rowcount
-
-        # Handle mixed updates individually
-        for rowid, text, metadata, embedding in mixed_updates:
-            sets = []
-            params: list[Any] = []
-            if text is not None:
-                sets.append("text = ?")
-                params.append(text)
-            if metadata is not None:
-                sets.append("metadata = ?")
-                params.append(json.dumps(metadata))
-            if embedding is not None:
-                sets.append("text_embedding = ?")
-                params.append(serialize_f32(embedding))
-            params.append(rowid)
-
-            if sets:
-                sql = f"UPDATE {self.table} SET " + ", ".join(sets) + " WHERE rowid = ?"
-                cur.execute(sql, params)
-                updated_count += cur.rowcount
-
-        if not self._in_transaction:
-            self.connection.commit()
-
-        logger.info(f"Updated {updated_count} records in table '{self.table}'")
-        return updated_count
-
-    def get_all(self, batch_size: int = 100) -> Generator[Result, None, None]:
-        """Yield all records in batches for memory-efficient iteration.
-
-        Args:
-            batch_size: Number of records to fetch per batch
-
-        Yields:
-            Individual (rowid, text, metadata, embedding) tuples
-        """
-        validate_limit(batch_size)
-        logger.debug(f"Fetching all records with batch_size={batch_size}")
-        last_rowid = 0
-        cursor = self.connection.cursor()
-
-        while True:
-            cursor.execute(
-                f"""
-                SELECT rowid, text, metadata, text_embedding FROM {self.table}
-                WHERE rowid > ?
-                ORDER BY rowid ASC
-                LIMIT ?
-                """,
-                [last_rowid, batch_size],
-            )
-            rows = cursor.fetchall()
-            if not rows:
-                break
-
-            results = self.rows_to_results(rows)
-            yield from results
-            last_rowid = results[-1][0]  # Get last rowid from batch
 
     @contextmanager
     def transaction(self) -> Generator[None, None, None]:
