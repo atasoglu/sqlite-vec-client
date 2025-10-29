@@ -114,7 +114,6 @@ def export_to_csv(
                     "update_many",
                     "get_all",
                     "delete_many",
-                    "similarity_search",
                 ]
                 for op in operations:
                     matching = [r for r in mode_results[size] if r["operation"] == op]
@@ -124,5 +123,23 @@ def export_to_csv(
                         writer.writerow([op, f"{ops_per_sec:.2f}", f"{time_val:.4f}"])
                     else:
                         writer.writerow([op, "N/A", "N/A"])
+
+                # Add similarity search results with top_k in operation name
+                search_results = [
+                    r
+                    for r in mode_results[size]
+                    if r["operation"] == "similarity_search"
+                ]
+                for result in search_results:
+                    top_k = result.get("top_k", 0)
+                    ops_per_sec = result.get("ops_per_sec", 0)
+                    time_val = result.get("time", 0)
+                    writer.writerow(
+                        [
+                            f"similarity_search_{top_k}",
+                            f"{ops_per_sec:.2f}",
+                            f"{time_val:.4f}",
+                        ]
+                    )
 
             print(f"Exported {db_mode} ({size} records) to: {filename}")
