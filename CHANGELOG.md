@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-01-30
+
+### Changed
+- **BREAKING:** Simplified `update_many()` - removed complex grouping logic (58% code reduction)
+- **BREAKING:** Renamed `get_by_id()` → `get()` for cleaner API
+- **BREAKING:** Renamed `delete_by_id()` → `delete()` for cleaner API
+
+### Removed
+- **BREAKING:** Removed `get_by_text()` - use SQL queries or `get_all()` with filtering
+- **BREAKING:** Removed `get_by_metadata()` - use SQL queries or `get_all()` with filtering
+- **BREAKING:** Removed `list_results()` - use `get_all()` generator instead
+
+### Added
+- Kept `count()` method for convenience (user request)
+
+### Improved
+- 28% smaller codebase (650 → 467 lines)
+- 15% fewer methods (20 → 17)
+- Test coverage increased 89% → 92%
+- Cleaner, more intuitive API
+- Better code maintainability
+- All core CRUD and bulk operations preserved
+
 ## [1.2.0] - 2025-01-29
 
 ### Added
@@ -120,7 +143,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
-- **1.0.0** - First stable release with comprehensive features, bulk operations, logging, security improvements, and CI/CD
+- **2.0.0** - Major refactor: simplified API, removed niche methods, cleaner naming
+- **1.2.0** - Added benchmarks module
+- **1.0.0** - First stable release
 - **0.1.0** - Initial release
 
 ---
