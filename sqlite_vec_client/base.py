@@ -12,7 +12,7 @@ import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
 from types import TracebackType
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import sqlite_vec
 
@@ -28,6 +28,9 @@ from .validation import (
     validate_table_name,
     validate_top_k,
 )
+
+if TYPE_CHECKING:
+    from .pool import ConnectionPool
 
 logger = get_logger()
 
@@ -91,22 +94,34 @@ class SQLiteVecClient:
             for row in rows
         ]
 
-    def __init__(self, table: str, db_path: str) -> None:
+    def __init__(
+        self, table: str, db_path: str | None = None, pool: ConnectionPool | None = None
+    ) -> None:
         """Initialize the client for a given base table and database file.
 
         Args:
             table: Name of the base table
-            db_path: Path to SQLite database file
+            db_path: Path to SQLite database file (required if pool is None)
+            pool: Optional connection pool for connection reuse
 
         Raises:
             TableNameError: If table name is invalid
             VecConnectionError: If connection fails
+            ValueError: If both db_path and pool are None
         """
         validate_table_name(table)
         self.table = table
         self._in_transaction = False
+        self._pool = pool
         logger.debug(f"Initializing SQLiteVecClient for table: {table}")
-        self.connection = self.create_connection(db_path)
+
+        if pool:
+            self.connection = pool.get_connection()
+            logger.debug("Using connection from pool")
+        elif db_path:
+            self.connection = self.create_connection(db_path)
+        else:
+            raise ValueError("Either db_path or pool must be provided")
 
     def __enter__(self) -> SQLiteVecClient:
         """Support context manager protocol and return `self`."""
@@ -518,10 +533,14 @@ class SQLiteVecClient:
             self._in_transaction = False
 
     def close(self) -> None:
-        """Close the underlying SQLite connection, suppressing close errors."""
+        """Close or return the connection to pool, suppressing close errors."""
         try:
             logger.debug(f"Closing connection for table '{self.table}'")
-            self.connection.close()
-            logger.info(f"Connection closed for table '{self.table}'")
+            if self._pool:
+                self._pool.return_connection(self.connection)
+                logger.info(f"Connection returned to pool for table '{self.table}'")
+            else:
+                self.connection.close()
+                logger.info(f"Connection closed for table '{self.table}'")
         except Exception as e:
             logger.warning(f"Error closing connection: {e}")
