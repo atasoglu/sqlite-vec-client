@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sqlite-vec-client"
 version = "2.1.1"
-description = "A tiny Python client around sqlite-vec for CRUD and similarity search."
+description = "A lightweight Python client around sqlite-vec for CRUD and similarity search."
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
