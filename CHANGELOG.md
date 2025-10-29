@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-01-29
+
+### Added
+- Benchmarks module with comprehensive performance testing for CRUD operations
+- Configurable benchmark suite via `benchmarks/config.yaml`
+- Support for testing with different dataset sizes (100, 1K, 10K, 50K records)
+- Benchmark operations: add, get_many, similarity_search, update_many, get_all, delete_many
+
+### Fixed
+- Fixed `delete_many()` to handle large rowid lists by batching into chunks of 500 to avoid SQLite's "too many SQL variables" error
+
 ## [1.0.1] - 2025-01-29
 
 ### Changed
