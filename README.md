@@ -6,7 +6,7 @@
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![CI](https://github.com/atasoglu/sqlite-vec-client/actions/workflows/test.yml/badge.svg)](https://github.com/atasoglu/sqlite-vec-client/actions/workflows/test.yml)
 
-A lightweight Pythonic helper around [sqlite-vec](https://github.com/asg017/sqlite-vec) that lets you store texts, JSON metadata, and float32 embeddings in SQLite and run fast similarity search.
+A lightweight Python client around [sqlite-vec](https://github.com/asg017/sqlite-vec) that lets you store texts, JSON metadata, and float32 embeddings in SQLite and run fast similarity search.
 
 ## Features
 - **Simple API**: One class, `SQLiteVecClient`, for CRUD and search.
