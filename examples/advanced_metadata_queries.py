@@ -82,7 +82,7 @@ def main():
         results = client.filter_by_metadata(
             {"author.country": "US"}, limit=2, offset=page
         )
-        print(f"  Page {page//2 + 1}: {[r[1] for r in results]}")
+        print(f"  Page {page // 2 + 1}: {[r[1] for r in results]}")
 
     # Example 6: Alternative - regular similarity search
     print("\n\n=== Regular Similarity Search (no filter) ===")
