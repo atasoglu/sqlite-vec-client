@@ -8,6 +8,7 @@ similarity search through a virtual vector table.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -24,6 +25,7 @@ from .types import Embeddings, Metadata, Result, Rowids, SimilaritySearchResult,
 from .utils import build_metadata_where_clause, deserialize_f32, serialize_f32
 from .validation import (
     validate_dimension,
+    validate_embedding_dimension,
     validate_embeddings_match,
     validate_limit,
     validate_metadata_filters,
@@ -114,6 +116,7 @@ class SQLiteVecClient:
         self.table = table
         self._in_transaction = False
         self._pool = pool
+        self._dimension: int | None = None
         logger.debug(f"Initializing SQLiteVecClient for table: {table}")
 
         if pool:
@@ -213,6 +216,51 @@ class SQLiteVecClient:
         )
         self.connection.commit()
         logger.debug(f"Table '{self.table}' and triggers created successfully")
+        self._dimension = dim
+
+    def _ensure_dimension(self) -> int:
+        """Return embedding dimension for the vec table, reading schema if needed."""
+        if self._dimension is not None:
+            return self._dimension
+
+        logger.debug("Resolving embedding dimension from vector table schema")
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(
+                "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+                [f"{self.table}_vec"],
+            )
+        except sqlite3.OperationalError as e:
+            logger.error(f"Failed to inspect schema for table '{self.table}_vec': {e}")
+            raise TableNotFoundError(
+                f"Table '{self.table}_vec' does not exist. Call create_table() first."
+            ) from e
+        row = cursor.fetchone()
+        if row is None:
+            logger.error(f"Vector table '{self.table}_vec' not found in sqlite_master")
+            raise TableNotFoundError(
+                f"Table '{self.table}_vec' does not exist. Call create_table() first."
+            )
+        sql_definition = row["sql"] if hasattr(row, "keys") else row[0]
+        if sql_definition is None:
+            raise ValueError(
+                "Embedding dimension could not be determined for "
+                f"table '{self.table}_vec'"
+            )
+
+        match = re.search(r"float\[(\d+)\]", sql_definition)
+        if not match:
+            raise ValueError(
+                "Embedding dimension could not be determined for "
+                f"table '{self.table}_vec'"
+            )
+
+        self._dimension = int(match.group(1))
+        logger.debug(
+            "Resolved embedding dimension for table "
+            f"'{self.table}_vec': {self._dimension}"
+        )
+        return self._dimension
 
     def similarity_search(
         self,
@@ -233,6 +281,8 @@ class SQLiteVecClient:
             TableNotFoundError: If table doesn't exist
         """
         validate_top_k(top_k)
+        expected_dim = self._ensure_dimension()
+        validate_embedding_dimension(embedding, expected_dim)
         logger.debug(f"Performing similarity search with top_k={top_k}")
         try:
             cursor = self.connection.cursor()
@@ -291,6 +341,9 @@ class SQLiteVecClient:
             TableNotFoundError: If table doesn't exist
         """
         validate_embeddings_match(texts, embeddings, metadata)
+        expected_dim = self._ensure_dimension()
+        for embedding in embeddings:
+            validate_embedding_dimension(embedding, expected_dim)
         logger.debug(f"Adding {len(texts)} records to table '{self.table}'")
         try:
             if metadata is None:
@@ -410,6 +463,8 @@ class SQLiteVecClient:
             sets.append("metadata = ?")
             params.append(json.dumps(metadata))
         if embedding is not None:
+            expected_dim = self._ensure_dimension()
+            validate_embedding_dimension(embedding, expected_dim)
             sets.append("text_embedding = ?")
             params.append(serialize_f32(embedding))
 
@@ -457,6 +512,8 @@ class SQLiteVecClient:
                 sets.append("metadata = ?")
                 params.append(json.dumps(metadata))
             if embedding is not None:
+                expected_dim = self._ensure_dimension()
+                validate_embedding_dimension(embedding, expected_dim)
                 sets.append("text_embedding = ?")
                 params.append(serialize_f32(embedding))
 
@@ -597,6 +654,8 @@ class SQLiteVecClient:
         """
         validate_top_k(top_k)
         validate_metadata_filters(filters)
+        expected_dim = self._ensure_dimension()
+        validate_embedding_dimension(embedding, expected_dim)
         logger.debug(f"Similarity search with filters: {filters}, top_k={top_k}")
 
         where_clause, params = build_metadata_where_clause(filters)
@@ -709,6 +768,78 @@ class SQLiteVecClient:
             Number of records imported
         """
         return io_module.import_from_csv(self, filepath, skip_duplicates, batch_size)
+
+    def backup(
+        self,
+        filepath: str,
+        *,
+        format: Literal["jsonl", "csv"] = "jsonl",
+        include_embeddings: bool = True,
+        filters: dict[str, Any] | None = None,
+        batch_size: int = 1000,
+    ) -> int:
+        """Create a backup of the table in JSONL or CSV format.
+
+        Args:
+            filepath: Destination path for the backup file
+            format: Output format (`jsonl` or `csv`)
+            include_embeddings: Whether to include embeddings in the output
+            filters: Optional metadata filters to export a subset
+            batch_size: Number of records to process at once
+
+        Returns:
+            Number of records written to the backup
+        """
+        logger.info(
+            f"Backing up table '{self.table}' to {filepath} using format={format}"
+        )
+        if format == "jsonl":
+            return self.export_to_json(
+                filepath,
+                include_embeddings=include_embeddings,
+                filters=filters,
+                batch_size=batch_size,
+            )
+        if format == "csv":
+            return self.export_to_csv(
+                filepath,
+                include_embeddings=include_embeddings,
+                filters=filters,
+                batch_size=batch_size,
+            )
+        raise ValueError("format must be 'jsonl' or 'csv'")
+
+    def restore(
+        self,
+        filepath: str,
+        *,
+        format: Literal["jsonl", "csv"] = "jsonl",
+        skip_duplicates: bool = False,
+        batch_size: int = 1000,
+    ) -> int:
+        """Restore records from a backup file.
+
+        Args:
+            filepath: Path to the backup file
+            format: Input format (`jsonl` or `csv`)
+            skip_duplicates: Skip records whose rowids already exist
+            batch_size: Number of records to process at once
+
+        Returns:
+            Number of records imported
+        """
+        logger.info(
+            f"Restoring table '{self.table}' from {filepath} using format={format}"
+        )
+        if format == "jsonl":
+            return self.import_from_json(
+                filepath, skip_duplicates=skip_duplicates, batch_size=batch_size
+            )
+        if format == "csv":
+            return self.import_from_csv(
+                filepath, skip_duplicates=skip_duplicates, batch_size=batch_size
+            )
+        raise ValueError("format must be 'jsonl' or 'csv'")
 
     @contextmanager
     def transaction(self) -> Generator[None, None, None]:

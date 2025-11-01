@@ -16,6 +16,7 @@ A lightweight Python client around [sqlite-vec](https://github.com/asg017/sqlite
 - **Filtering helpers**: Fetch by `rowid`, `text`, or `metadata`.
 - **Pagination & sorting**: List records with `limit`, `offset`, and order.
 - **Bulk operations**: Efficient `update_many()`, `get_all()` generator, and transaction support.
+- **Backup tooling**: High-level `backup()` and `restore()` helpers for disaster recovery workflows.
 
 ## Requirements
 - Python 3.9+
@@ -96,6 +97,20 @@ client.import_from_json("backup.jsonl")
 ```
 
 See [examples/export_import_example.py](examples/export_import_example.py) for more examples.
+
+### Quick backup & restore helpers
+
+```python
+# Create a JSONL backup
+client.backup("backup.jsonl")
+
+# Restore later (optionally skip duplicates)
+client.restore("backup.jsonl", skip_duplicates=True)
+
+# Work with CSV
+client.backup("backup.csv", format="csv", include_embeddings=True)
+client.restore("backup.csv", format="csv", skip_duplicates=True)
+```
 
 ## Metadata Filtering
 
@@ -227,10 +242,11 @@ pytest -m unit          # Unit tests only
 pytest -m integration   # Integration tests only
 ```
 
-**Run with coverage report:**
+**Coverage (terminal + XML for CI):**
 ```bash
-pytest --cov=sqlite_vec_client --cov-report=html
+pytest --cov=sqlite_vec_client --cov-report=term-missing --cov-report=xml
 ```
+The CI workflow uploads the generated `coverage.xml` as an artifact for downstream dashboards.
 
 **Run specific test file:**
 ```bash
@@ -282,6 +298,7 @@ Edit [benchmarks/config.yaml](benchmarks/config.yaml) to customize:
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
 - [CHANGELOG.md](CHANGELOG.md) - Version history
 - [TESTING.md](TESTING.md) - Testing documentation
+- [Docs site (MkDocs)](docs/index.md) - Serve locally with `mkdocs serve`
 - [Examples](examples/) - Usage examples
   - [basic_usage.py](examples/basic_usage.py) - Basic CRUD operations
   - [metadata_filtering.py](examples/metadata_filtering.py) - Metadata filtering and queries

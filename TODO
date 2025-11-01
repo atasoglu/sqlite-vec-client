@@ -35,8 +35,8 @@
 ### Documentation
 - [x] Create CONTRIBUTING.md
 - [x] Start CHANGELOG.md
-- [ ] API reference documentation (Sphinx or MkDocs)
-- [ ] Migration guide (for version updates)
+- [x] API reference documentation (Sphinx or MkDocs)
+- [x] Migration guide (for version updates)
 
 ## 🟢 Medium Priority (Development & Tooling)
 
@@ -75,7 +75,7 @@
 - [x] Export/import functions (JSON, CSV)
 - [ ] Async/await support (aiosqlite)
 - [ ] Table migration utilities
-- [ ] Backup/restore functions
+- [x] Backup/restore functions
 
 ### API Improvements
 - [x] Optimized methods for bulk operations
@@ -102,7 +102,7 @@
 
 ## 📊 Metrics & Monitoring
 
-- [ ] Code coverage tracking
+- [x] Code coverage tracking
 - [ ] Performance metrics
 - [ ] Download statistics (PyPI)
 - [ ] Issue response time tracking

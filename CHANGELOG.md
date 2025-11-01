@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2025-02-15
+
+### Added
+- High-level `backup()` and `restore()` helpers wrapping JSONL/CSV workflows
+- MkDocs documentation scaffold with API reference, operations playbook, and migration guide
+- Backup/restore coverage in the integration test suite
+
+### Fixed
+- Enforced embedding dimension validation across add/update/search operations
+- `import_from_json()` and `import_from_csv()` now respect `skip_duplicates` and emit clear errors when embeddings are missing
+
+### Documentation
+- New migration guide outlining v2.3.0 changes
+- Expanded README with backup helper examples and coverage instructions
+- Requirements updated with MkDocs to build the documentation locally
+
+### CI
+- Pytest coverage step now generates XML output and uploads `coverage.xml` as a GitHub Actions artifact
+
 ## [2.2.0] - 2025-02-01
 
 ### Added
