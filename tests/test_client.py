@@ -3,6 +3,7 @@
 import pytest
 
 from sqlite_vec_client import (
+    DimensionMismatchError,
     SQLiteVecClient,
     TableNameError,
     TableNotFoundError,
@@ -84,6 +85,14 @@ class TestAddRecords:
         with pytest.raises(ValidationError):
             client_with_table.add(texts=["a", "b"], embeddings=[[1.0, 2.0, 3.0]])
 
+    def test_add_invalid_embedding_dimension(
+        self, client_with_table, sample_texts, sample_embeddings
+    ):
+        """Test that embeddings with wrong dimension raise error."""
+        invalid_embeddings = [[0.1, 0.2]] * len(sample_texts)
+        with pytest.raises(DimensionMismatchError):
+            client_with_table.add(texts=sample_texts, embeddings=invalid_embeddings)
+
 
 @pytest.mark.integration
 class TestSimilaritySearch:
@@ -109,6 +118,14 @@ class TestSimilaritySearch:
         """Test that invalid top_k raises error."""
         with pytest.raises(ValidationError):
             client_with_table.similarity_search(embedding=[0.1, 0.2, 0.3], top_k=0)
+
+    def test_similarity_search_invalid_dimension(
+        self, client_with_table, sample_texts, sample_embeddings
+    ):
+        """Test that query embedding with wrong dimension raises error."""
+        client_with_table.add(texts=sample_texts, embeddings=sample_embeddings)
+        with pytest.raises(DimensionMismatchError):
+            client_with_table.similarity_search(embedding=[0.1, 0.2], top_k=1)
 
 
 @pytest.mark.integration

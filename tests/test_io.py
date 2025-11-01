@@ -67,6 +67,63 @@ class TestJSONExportImport:
 
         client.close()
 
+    def test_import_skip_duplicates(self, tmp_path, sample_texts, sample_embeddings):
+        """Test that duplicate records are skipped when requested."""
+        db_path = str(tmp_path / "test.db")
+        client = SQLiteVecClient(table="test", db_path=db_path)
+        client.create_table(dim=3)
+        client.add(texts=sample_texts, embeddings=sample_embeddings)
+
+        export_path = str(tmp_path / "export.jsonl")
+        client.export_to_json(export_path)
+
+        imported = client.import_from_json(export_path, skip_duplicates=True)
+        assert imported == 0
+        assert client.count() == 3
+
+        client.close()
+
+    def test_import_missing_embedding_raises(
+        self, tmp_path, sample_texts, sample_embeddings
+    ):
+        """Test that importing without embedding data raises error."""
+        export_path = tmp_path / "invalid.jsonl"
+        with export_path.open("w", encoding="utf-8") as f:
+            json.dump({"rowid": 1, "text": "hello", "metadata": {"a": 1}}, f)
+            f.write("\n")
+
+        db_path = str(tmp_path / "test.db")
+        client = SQLiteVecClient(table="test", db_path=db_path)
+        client.create_table(dim=3)
+
+        with pytest.raises(ValueError, match="missing 'embedding'"):
+            client.import_from_json(str(export_path))
+
+        client.close()
+
+    def test_backup_and_restore_helpers(
+        self, tmp_path, sample_texts, sample_embeddings
+    ):
+        """Test high-level backup and restore helpers."""
+        db_path = str(tmp_path / "test.db")
+        client = SQLiteVecClient(table="test", db_path=db_path)
+        client.create_table(dim=3)
+        client.add(texts=sample_texts, embeddings=sample_embeddings)
+
+        backup_path = str(tmp_path / "backup.jsonl")
+        count = client.backup(backup_path)
+        assert count == 3
+
+        for rowid in range(1, 4):
+            client.delete(rowid)
+        assert client.count() == 0
+
+        restored = client.restore(backup_path)
+        assert restored == 3
+        assert client.count() == 3
+
+        client.close()
+
     def test_export_with_filters(self, tmp_path, sample_texts, sample_embeddings):
         """Test export with metadata filters."""
         db_path = str(tmp_path / "test.db")
@@ -153,6 +210,43 @@ class TestCSVExportImport:
             assert "embedding" not in header
             assert "text" in header
             assert "metadata" in header
+
+        client.close()
+
+    def test_import_without_embedding_column_raises(
+        self, tmp_path, sample_texts, sample_embeddings
+    ):
+        """Test importing CSV without embeddings raises error."""
+        db_path = str(tmp_path / "test.db")
+        client = SQLiteVecClient(table="test", db_path=db_path)
+        client.create_table(dim=3)
+        client.add(texts=sample_texts, embeddings=sample_embeddings)
+
+        export_path = str(tmp_path / "export.csv")
+        client.export_to_csv(export_path, include_embeddings=False)
+
+        with pytest.raises(ValueError, match="missing 'embedding'"):
+            client.import_from_csv(export_path)
+
+        client.close()
+
+    def test_backup_and_restore_csv(self, tmp_path, sample_texts, sample_embeddings):
+        """Test backup and restore helpers with CSV format."""
+        db_path = str(tmp_path / "test.db")
+        client = SQLiteVecClient(table="test", db_path=db_path)
+        client.create_table(dim=3)
+        client.add(texts=sample_texts, embeddings=sample_embeddings)
+
+        backup_path = str(tmp_path / "backup.csv")
+        count = client.backup(backup_path, format="csv", include_embeddings=True)
+        assert count == 3
+
+        for rowid in range(1, 4):
+            client.delete(rowid)
+
+        restored = client.restore(backup_path, format="csv")
+        assert restored == 3
+        assert client.count() == 3
 
         client.close()
 

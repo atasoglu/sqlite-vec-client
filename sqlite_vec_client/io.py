@@ -110,9 +110,21 @@ def import_from_json(
                 continue
 
             record = json.loads(line)
+            embedding = record.get("embedding")
+            if embedding is None:
+                raise ValueError(
+                    "JSON record is missing 'embedding'. Export with "
+                    "include_embeddings=True to support import."
+                )
+
+            record_rowid = record.get("rowid")
+            if skip_duplicates and isinstance(record_rowid, int):
+                if client.get(record_rowid) is not None:
+                    continue
+
             texts.append(record["text"])
             metadata_list.append(record.get("metadata", {}))
-            embeddings.append(record["embedding"])
+            embeddings.append(embedding)
 
             if len(texts) >= batch_size:
                 client.add(texts=texts, embeddings=embeddings, metadata=metadata_list)
@@ -225,7 +237,28 @@ def import_from_csv(
 
     with path.open("r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
+        if reader.fieldnames is None:
+            raise ValueError("CSV file must include headers")
+        if "embedding" not in reader.fieldnames:
+            raise ValueError(
+                "CSV file is missing 'embedding' column. Export with "
+                "include_embeddings=True to support import."
+            )
+        if "text" not in reader.fieldnames or "metadata" not in reader.fieldnames:
+            raise ValueError("CSV file must include 'text' and 'metadata' columns")
         for row in reader:
+            record_rowid = row.get("rowid")
+            parsed_rowid = int(record_rowid) if record_rowid else None
+            if skip_duplicates and parsed_rowid is not None:
+                if client.get(parsed_rowid) is not None:
+                    continue
+
+            if row.get("embedding") is None or row["embedding"].strip() == "":
+                raise ValueError(
+                    "CSV record is missing embedding data. Export with "
+                    "include_embeddings=True."
+                )
+
             texts.append(row["text"])
             metadata_list.append(json.loads(row["metadata"]))
             embeddings.append(json.loads(row["embedding"]))

@@ -1,0 +1,14 @@
+site_name: sqlite-vec-client
+site_url: https://atasoglu.github.io/sqlite-vec-client/
+repo_url: https://github.com/atasoglu/sqlite-vec-client
+theme:
+  name: mkdocs
+nav:
+  - Overview: index.md
+  - API Reference:
+      - SQLiteVecClient: api.md
+  - Guides:
+      - Migration Guide: guides/migration.md
+  - Operations: operations.md
+markdown_extensions:
+  - admonition
