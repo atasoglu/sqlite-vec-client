@@ -30,6 +30,7 @@ from .validation import (
     validate_limit,
     validate_metadata_filters,
     validate_offset,
+    validate_on_conflict,
     validate_table_name,
     validate_top_k,
 )
@@ -144,12 +145,15 @@ class SQLiteVecClient:
         self,
         dim: int,
         distance: Literal["L1", "L2", "cosine"] = "cosine",
+        unique_text: bool = False,
     ) -> None:
         """Create base table, vector table, and triggers to keep them in sync.
 
         Args:
             dim: Embedding dimension (must be positive)
             distance: Distance metric for similarity search
+            unique_text: If True, enforce uniqueness on the text column.
+                         This enables ``on_conflict`` options in :meth:`add`.
 
         Raises:
             TableNameError: If table name is invalid
@@ -172,6 +176,14 @@ class SQLiteVecClient:
             ;
             """
         )
+        if unique_text:
+            self.connection.execute(
+                f"""
+                CREATE UNIQUE INDEX IF NOT EXISTS {self.table}_text_unique
+                ON {self.table}(text)
+                ;
+                """
+            )
         self.connection.execute(
             f"""
             CREATE VIRTUAL TABLE IF NOT EXISTS {self.table}_vec USING vec0(
@@ -325,6 +337,7 @@ class SQLiteVecClient:
         texts: list[Text],
         embeddings: list[Embeddings],
         metadata: list[Metadata] | None = None,
+        on_conflict: Literal["error", "ignore", "replace"] = "error",
     ) -> Rowids:
         """Insert texts with embeddings (and optional metadata) and return rowids.
 
@@ -332,14 +345,22 @@ class SQLiteVecClient:
             texts: List of text strings
             embeddings: List of embedding vectors
             metadata: Optional list of metadata dicts
+            on_conflict: How to handle duplicate texts when a UNIQUE index on
+                ``text`` exists (see ``create_table(unique_text=True)``).
+
+                - ``"error"`` (default): raise on conflict.
+                - ``"ignore"``: silently skip duplicate texts.
+                - ``"replace"``: update metadata and embedding of
+                  existing records that share the same text.
 
         Returns:
-            List of rowids for inserted records
+            List of rowids for inserted (or upserted) records
 
         Raises:
-            ValidationError: If list lengths don't match
+            ValidationError: If list lengths don't match or on_conflict is invalid
             TableNotFoundError: If table doesn't exist
         """
+        validate_on_conflict(on_conflict)
         validate_embeddings_match(texts, embeddings, metadata)
         expected_dim = self._ensure_dimension()
         for embedding in embeddings:
@@ -356,19 +377,49 @@ class SQLiteVecClient:
 
             cur = self.connection.cursor()
 
-            # Get max rowid before insert
-            max_before = cur.execute(
-                f"SELECT COALESCE(MAX(rowid), 0) FROM {self.table}"
-            ).fetchone()[0]
+            if on_conflict == "ignore":
+                sql = (
+                    f"INSERT OR IGNORE INTO {self.table}"
+                    f"(text, metadata, text_embedding) VALUES (?,?,?)"
+                )
+            elif on_conflict == "replace":
+                sql = (
+                    f"INSERT INTO {self.table}(text, metadata, text_embedding) "
+                    f"VALUES (?,?,?) "
+                    f"ON CONFLICT(text) DO UPDATE SET "
+                    f"metadata=excluded.metadata, "
+                    f"text_embedding=excluded.text_embedding"
+                )
+            else:
+                sql = (
+                    f"INSERT INTO {self.table}"
+                    f"(text, metadata, text_embedding) VALUES (?,?,?)"
+                )
 
-            cur.executemany(
-                f"""INSERT INTO {self.table}(text, metadata, text_embedding)
-                VALUES (?,?,?)""",
-                data_input,
-            )
+            if on_conflict in ("error", "ignore"):
+                max_before = cur.execute(
+                    f"SELECT COALESCE(MAX(rowid), 0) FROM {self.table}"
+                ).fetchone()[0]
 
-            # Calculate rowids from max_before
-            rowids = list(range(max_before + 1, max_before + len(texts) + 1))
+            cur.executemany(sql, data_input)
+
+            if on_conflict == "error":
+                rowids = list(range(max_before + 1, max_before + len(texts) + 1))
+            elif on_conflict == "ignore":
+                cur.execute(
+                    f"SELECT rowid FROM {self.table} "
+                    f"WHERE rowid > ? ORDER BY rowid",
+                    [max_before],
+                )
+                rowids = [row[0] for row in cur.fetchall()]
+            else:
+                placeholders = ",".join(["?"] * len(texts))
+                cur.execute(
+                    f"SELECT rowid FROM {self.table} "
+                    f"WHERE text IN ({placeholders}) ORDER BY rowid",
+                    texts,
+                )
+                rowids = [row[0] for row in cur.fetchall()]
 
             if not self._in_transaction:
                 self.connection.commit()

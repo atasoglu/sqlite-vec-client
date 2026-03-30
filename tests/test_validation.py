@@ -14,6 +14,7 @@ from sqlite_vec_client.validation import (
     validate_limit,
     validate_metadata_filters,
     validate_offset,
+    validate_on_conflict,
     validate_table_name,
     validate_top_k,
 )
@@ -239,3 +240,23 @@ class TestValidateMetadataFilters:
         """Test that non-string keys raise error."""
         with pytest.raises(ValidationError, match="must be string"):
             validate_metadata_filters({123: "value"})
+
+
+@pytest.mark.unit
+class TestValidateOnConflict:
+    """Tests for validate_on_conflict function."""
+
+    def test_valid_values(self):
+        """Test that valid on_conflict values pass validation."""
+        for value in ["error", "ignore", "replace"]:
+            validate_on_conflict(value)
+
+    def test_invalid_value(self):
+        """Test that invalid on_conflict value raises error."""
+        with pytest.raises(ValidationError, match="on_conflict must be one of"):
+            validate_on_conflict("bad")
+
+    def test_empty_value(self):
+        """Test that empty string raises error."""
+        with pytest.raises(ValidationError, match="on_conflict must be one of"):
+            validate_on_conflict("")
