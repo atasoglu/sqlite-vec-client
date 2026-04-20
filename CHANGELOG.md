@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-04-21
+
+### Added
+- `unique_text` parameter in `create_table` to enforce a uniqueness constraint on the text column
+- `on_conflict` parameter in the `add` method to control duplicate-entry handling with options: `"error"`, `"ignore"`, and `"replace"`
+- Validation for `on_conflict` values to ensure only accepted options are used
+- Tests covering unique text constraints and all conflict resolution strategies
+
 ## [2.3.0] - 2025-02-15
 
 ### Added
