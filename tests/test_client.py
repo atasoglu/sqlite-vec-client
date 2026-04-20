@@ -1,5 +1,7 @@
 """Integration tests for SQLiteVecClient."""
 
+import sqlite3
+
 import pytest
 
 from sqlite_vec_client import (
@@ -92,6 +94,155 @@ class TestAddRecords:
         invalid_embeddings = [[0.1, 0.2]] * len(sample_texts)
         with pytest.raises(DimensionMismatchError):
             client_with_table.add(texts=sample_texts, embeddings=invalid_embeddings)
+
+
+@pytest.mark.integration
+class TestUniqueText:
+    """Tests for unique_text constraint and on_conflict parameter."""
+
+    def test_unique_text_rejects_duplicates_by_default(
+        self, client_with_unique_table, sample_embeddings
+    ):
+        """Duplicate text raises IntegrityError when on_conflict='error'."""
+        client_with_unique_table.add(
+            texts=["hello"], embeddings=[sample_embeddings[0]]
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            client_with_unique_table.add(
+                texts=["hello"], embeddings=[sample_embeddings[1]]
+            )
+
+    def test_on_conflict_ignore_skips_duplicates(
+        self, client_with_unique_table, sample_embeddings
+    ):
+        """Duplicate texts are silently skipped with on_conflict='ignore'."""
+        client_with_unique_table.add(
+            texts=["hello"], embeddings=[sample_embeddings[0]]
+        )
+        rowids = client_with_unique_table.add(
+            texts=["hello", "world"],
+            embeddings=[sample_embeddings[1], sample_embeddings[2]],
+            on_conflict="ignore",
+        )
+        assert len(rowids) == 1
+        assert client_with_unique_table.count() == 2
+
+    def test_on_conflict_ignore_all_duplicates(
+        self, client_with_unique_table, sample_embeddings
+    ):
+        """All duplicates skipped returns empty rowids."""
+        client_with_unique_table.add(
+            texts=["hello"], embeddings=[sample_embeddings[0]]
+        )
+        rowids = client_with_unique_table.add(
+            texts=["hello"],
+            embeddings=[sample_embeddings[1]],
+            on_conflict="ignore",
+        )
+        assert rowids == []
+        assert client_with_unique_table.count() == 1
+
+    def test_on_conflict_ignore_preserves_original(
+        self, client_with_unique_table, sample_embeddings
+    ):
+        """Ignored duplicates do not overwrite the original record."""
+        client_with_unique_table.add(
+            texts=["hello"],
+            embeddings=[sample_embeddings[0]],
+            metadata=[{"version": 1}],
+        )
+        client_with_unique_table.add(
+            texts=["hello"],
+            embeddings=[sample_embeddings[1]],
+            metadata=[{"version": 2}],
+            on_conflict="ignore",
+        )
+        record = client_with_unique_table.get(1)
+        assert record[2] == {"version": 1}
+
+    def test_on_conflict_replace_updates_existing(
+        self, client_with_unique_table, sample_embeddings
+    ):
+        """Duplicate texts are updated with on_conflict='replace'."""
+        client_with_unique_table.add(
+            texts=["hello"],
+            embeddings=[sample_embeddings[0]],
+            metadata=[{"version": 1}],
+        )
+        rowids = client_with_unique_table.add(
+            texts=["hello"],
+            embeddings=[sample_embeddings[1]],
+            metadata=[{"version": 2}],
+            on_conflict="replace",
+        )
+        assert len(rowids) == 1
+        assert client_with_unique_table.count() == 1
+        record = client_with_unique_table.get(rowids[0])
+        assert record[2] == {"version": 2}
+        assert record[3] == pytest.approx(sample_embeddings[1], abs=1e-6)
+
+    def test_on_conflict_replace_mixed_insert_and_update(
+        self, client_with_unique_table, sample_embeddings
+    ):
+        """Replace mode handles a mix of new and existing texts."""
+        client_with_unique_table.add(
+            texts=["hello"], embeddings=[sample_embeddings[0]]
+        )
+        rowids = client_with_unique_table.add(
+            texts=["hello", "world"],
+            embeddings=[sample_embeddings[1], sample_embeddings[2]],
+            on_conflict="replace",
+        )
+        assert len(rowids) == 2
+        assert client_with_unique_table.count() == 2
+
+    def test_on_conflict_replace_keeps_rowid(
+        self, client_with_unique_table, sample_embeddings
+    ):
+        """Replace mode preserves the original rowid."""
+        original_rowids = client_with_unique_table.add(
+            texts=["hello"], embeddings=[sample_embeddings[0]]
+        )
+        new_rowids = client_with_unique_table.add(
+            texts=["hello"],
+            embeddings=[sample_embeddings[1]],
+            on_conflict="replace",
+        )
+        assert new_rowids == original_rowids
+
+    def test_on_conflict_replace_vec_table_synced(
+        self, client_with_unique_table, sample_embeddings
+    ):
+        """Replace mode keeps the vector table in sync for similarity search."""
+        client_with_unique_table.add(
+            texts=["hello"], embeddings=[sample_embeddings[0]]
+        )
+        client_with_unique_table.add(
+            texts=["hello"],
+            embeddings=[sample_embeddings[1]],
+            on_conflict="replace",
+        )
+        results = client_with_unique_table.similarity_search(
+            embedding=sample_embeddings[1], top_k=1
+        )
+        assert results[0][1] == "hello"
+
+    def test_on_conflict_invalid_value(self, client_with_unique_table):
+        """Invalid on_conflict value raises ValidationError."""
+        with pytest.raises(ValidationError):
+            client_with_unique_table.add(
+                texts=["hello"],
+                embeddings=[[0.1, 0.2, 0.3]],
+                on_conflict="bad",
+            )
+
+    def test_without_unique_text_allows_duplicates(
+        self, client_with_table, sample_embeddings
+    ):
+        """Without unique_text, duplicate texts are allowed."""
+        client_with_table.add(texts=["hello"], embeddings=[sample_embeddings[0]])
+        client_with_table.add(texts=["hello"], embeddings=[sample_embeddings[1]])
+        assert client_with_table.count() == 2
 
 
 @pytest.mark.integration

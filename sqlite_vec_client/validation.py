@@ -123,6 +123,25 @@ def validate_embedding_dimension(embedding: list[float], expected_dim: int) -> N
         )
 
 
+_VALID_ON_CONFLICT = frozenset({"error", "ignore", "replace"})
+
+
+def validate_on_conflict(on_conflict: str) -> None:
+    """Validate the on_conflict parameter for add().
+
+    Args:
+        on_conflict: Conflict resolution strategy
+
+    Raises:
+        ValidationError: If the value is not one of 'error', 'ignore', 'replace'
+    """
+    if on_conflict not in _VALID_ON_CONFLICT:
+        raise ValidationError(
+            f"on_conflict must be one of {sorted(_VALID_ON_CONFLICT)}, "
+            f"got '{on_conflict}'"
+        )
+
+
 def validate_metadata_filters(filters: dict[str, Any]) -> None:
     """Validate metadata filters dictionary.
 

@@ -32,6 +32,13 @@ def client_with_table(client: SQLiteVecClient) -> SQLiteVecClient:
 
 
 @pytest.fixture
+def client_with_unique_table(client: SQLiteVecClient) -> SQLiteVecClient:
+    """Provide a client with table created with unique_text=True."""
+    client.create_table(dim=3, distance="cosine", unique_text=True)
+    return client
+
+
+@pytest.fixture
 def sample_embeddings() -> list[list[float]]:
     """Provide sample 3D embeddings for testing."""
     return [
