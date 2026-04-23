@@ -407,8 +407,7 @@ class SQLiteVecClient:
                 rowids = list(range(max_before + 1, max_before + len(texts) + 1))
             elif on_conflict == "ignore":
                 cur.execute(
-                    f"SELECT rowid FROM {self.table} "
-                    f"WHERE rowid > ? ORDER BY rowid",
+                    f"SELECT rowid FROM {self.table} WHERE rowid > ? ORDER BY rowid",
                     [max_before],
                 )
                 rowids = [row[0] for row in cur.fetchall()]
