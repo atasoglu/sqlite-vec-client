@@ -104,9 +104,7 @@ class TestUniqueText:
         self, client_with_unique_table, sample_embeddings
     ):
         """Duplicate text raises IntegrityError when on_conflict='error'."""
-        client_with_unique_table.add(
-            texts=["hello"], embeddings=[sample_embeddings[0]]
-        )
+        client_with_unique_table.add(texts=["hello"], embeddings=[sample_embeddings[0]])
         with pytest.raises(sqlite3.IntegrityError):
             client_with_unique_table.add(
                 texts=["hello"], embeddings=[sample_embeddings[1]]
@@ -116,9 +114,7 @@ class TestUniqueText:
         self, client_with_unique_table, sample_embeddings
     ):
         """Duplicate texts are silently skipped with on_conflict='ignore'."""
-        client_with_unique_table.add(
-            texts=["hello"], embeddings=[sample_embeddings[0]]
-        )
+        client_with_unique_table.add(texts=["hello"], embeddings=[sample_embeddings[0]])
         rowids = client_with_unique_table.add(
             texts=["hello", "world"],
             embeddings=[sample_embeddings[1], sample_embeddings[2]],
@@ -131,9 +127,7 @@ class TestUniqueText:
         self, client_with_unique_table, sample_embeddings
     ):
         """All duplicates skipped returns empty rowids."""
-        client_with_unique_table.add(
-            texts=["hello"], embeddings=[sample_embeddings[0]]
-        )
+        client_with_unique_table.add(texts=["hello"], embeddings=[sample_embeddings[0]])
         rowids = client_with_unique_table.add(
             texts=["hello"],
             embeddings=[sample_embeddings[1]],
@@ -185,9 +179,7 @@ class TestUniqueText:
         self, client_with_unique_table, sample_embeddings
     ):
         """Replace mode handles a mix of new and existing texts."""
-        client_with_unique_table.add(
-            texts=["hello"], embeddings=[sample_embeddings[0]]
-        )
+        client_with_unique_table.add(texts=["hello"], embeddings=[sample_embeddings[0]])
         rowids = client_with_unique_table.add(
             texts=["hello", "world"],
             embeddings=[sample_embeddings[1], sample_embeddings[2]],
@@ -214,9 +206,7 @@ class TestUniqueText:
         self, client_with_unique_table, sample_embeddings
     ):
         """Replace mode keeps the vector table in sync for similarity search."""
-        client_with_unique_table.add(
-            texts=["hello"], embeddings=[sample_embeddings[0]]
-        )
+        client_with_unique_table.add(texts=["hello"], embeddings=[sample_embeddings[0]])
         client_with_unique_table.add(
             texts=["hello"],
             embeddings=[sample_embeddings[1]],
